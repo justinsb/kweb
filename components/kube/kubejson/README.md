@@ -1,0 +1,1 @@
+This is heavily based on the protojson code, but we currently need some special handling for apiVersion and kind.

@@ -1,0 +1,5 @@
+# Ignore compiled protos
+*.pb
+
+# Ignore IDE files from vscode
+.vscode/
