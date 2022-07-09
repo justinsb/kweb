@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package pb;
+
+import "kube.proto";
+
+option go_package="subtext.video/frontend/components/user/pb";
+option (kube.group_version) = { group: "kweb.dev", version: "v1alpha1" };
+
+
+message User {
+    option (kube.kind) = { kind: "User" };
+
+	kube.TypeMeta typemeta = 1;
+	kube.ObjectMeta metadata = 2;
+    
+	UserSpec spec = 3;
+}
+
+message UserSpec {
+    string email = 1;
+}
+
+
+message UserAuth {
+	option (kube.kind) = { kind: "UserAuth" };
+
+	kube.TypeMeta typemeta = 1;
+	kube.ObjectMeta metadata = 2;
+
+	UserAuthSpec spec = 3;
+}
+
+message UserAuthSpec {
+	// The capitilization isn't normal proto, but it avoids name mangling
+    string userID = 1;
+    string providerID = 2;
+    string providerUserID = 3;
+}
+
