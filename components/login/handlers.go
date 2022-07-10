@@ -75,6 +75,7 @@ func (p *Component) OAuthCallback(ctx context.Context, req *components.Request) 
 		return nil, err
 	}
 
+	klog.Infof("request is %#v", req)
 	stateObj := req.Session.Get(sessionOauth2State)
 	var state *pb.StateData
 	if stateObj != nil {
@@ -139,7 +140,7 @@ func (p *Component) DebugInfo(ctx context.Context, req *components.Request) (com
 	if user == nil {
 		html = "not logged in"
 	} else {
-		html = "logged in as " + user.GetSpec().GetEmail()
+		html = "logged in as " + user.UserInfo.GetSpec().GetEmail()
 	}
 
 	response := components.SimpleResponse{

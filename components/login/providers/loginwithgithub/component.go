@@ -1,4 +1,4 @@
-package loginwithgoogle
+package loginwithgithub
 
 import (
 	"net/http"
@@ -12,7 +12,7 @@ type Component struct {
 	common login.Component
 }
 
-func NewComponent(userMapper login.UserMapper, provider *GoogleProvider) (*Component, error) {
+func NewComponent(userMapper login.UserMapper, provider *GithubProvider) (*Component, error) {
 	return &Component{
 		common: login.Component{
 			UserMapper: userMapper,
@@ -23,8 +23,8 @@ func NewComponent(userMapper login.UserMapper, provider *GoogleProvider) (*Compo
 
 func (c *Component) RegisterHandlers(s *components.Server, mux *http.ServeMux) {
 	mux.HandleFunc("/_login/logout", s.ServeHTTP(c.common.Logout))
-	mux.HandleFunc("/_login/oauth2/google", s.ServeHTTP(c.common.OAuthStart))
-	mux.HandleFunc("/_login/oauth2-callback/google", s.ServeHTTP(c.common.OAuthCallback))
+	mux.HandleFunc("/_login/oauth2/github", s.ServeHTTP(c.common.OAuthStart))
+	mux.HandleFunc("/_login/oauth2-callback/github", s.ServeHTTP(c.common.OAuthCallback))
 
 	// Temporary endpoint until we can do more (e.g. UI templating)
 	mux.HandleFunc("/info", s.ServeHTTP(c.common.DebugInfo))

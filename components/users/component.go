@@ -50,14 +50,14 @@ func (c *UserComponent) ProcessRequest(ctx context.Context, req *components.Requ
 func (c *UserComponent) RegisterHandlers(s *components.Server, mux *http.ServeMux) {
 }
 
-var contextKeyUser = &userapi.User{}
+var contextKeyUser = &User{}
 
-func GetUser(ctx context.Context) *userapi.User {
+func GetUser(ctx context.Context) *User {
 	v := ctx.Value(contextKeyUser)
 	if v == nil {
 		return nil
 	}
-	return v.(*userapi.User)
+	return v.(*User)
 }
 
 func buildUserAuthKey(info *components.AuthenticationInfo) types.NamespacedName {
@@ -110,9 +110,10 @@ func (c *UserComponent) MapToUser(ctx context.Context, req *components.Request, 
 
 	kube.InitObject(userAuth, userAuthKey)
 	userAuth.Spec = &userapi.UserAuthSpec{
-		ProviderID:     info.Provider.ProviderID(),
-		ProviderUserID: info.ProviderUserID,
-		UserID:         userID,
+		ProviderID:       info.Provider.ProviderID(),
+		ProviderUserID:   info.ProviderUserID,
+		ProviderUserName: info.ProviderUserName,
+		UserID:           userID,
 	}
 
 	if err := c.ensureNamespace(ctx, user.Metadata.Namespace); err != nil {

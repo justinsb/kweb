@@ -1,19 +1,24 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"time"
 
-	// _ "github.com/lib/pq"
 	"github.com/justinsb/kweb/components"
 	"github.com/justinsb/kweb/components/cookies"
+	"github.com/justinsb/kweb/components/github"
 	"github.com/justinsb/kweb/components/kube/kubeclient"
-	"github.com/justinsb/kweb/components/login/providers"
-	"github.com/justinsb/kweb/components/login/providers/loginwithgoogle"
+
+	// "github.com/justinsb/kweb/components/login/providers"
+	"github.com/justinsb/kweb/components/login/providers/loginwithgithub"
 	"github.com/justinsb/kweb/components/sessions"
 	"github.com/justinsb/kweb/components/users"
 
@@ -49,10 +54,36 @@ func New() (*Server, error) {
 	}
 	s.Components = append(s.Components, userComponent)
 
+	githubAppID := os.Getenv("GITHUB_APP_ID")
+	// TODO: Get from kube secret or file?
+	rsaPrivateKey, err := parsePrivateKey(os.Getenv("GITHUB_APP_KEY"))
+	if err != nil {
+		return nil, err
+	}
+	githubApp, err := github.New(kubeClient, githubAppID, rsaPrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("error building github component: %w", err)
+	}
+	s.Components = append(s.Components, githubApp)
+
 	clientID := os.Getenv("OAUTH2_CLIENT_ID")
 	clientSecret := os.Getenv("OAUTH2_CLIENT_SECRET")
-	googleProvider, err := providers.NewGoogleProvider("google", clientID, clientSecret)
-	loginComponent, err := loginwithgoogle.NewComponent(userComponent, googleProvider)
+	// googleProvider, err := loginwithgoogle.NewGoogleProvider("google", clientID, clientSecret)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("error building google provider: %w", err)
+	// }
+	githubAuth, err := loginwithgithub.NewGithubProvider(clientID, clientSecret)
+	if err != nil {
+		return nil, fmt.Errorf("error building github auth provider: %w", err)
+	}
+
+	// TODO: Cron-type tasks
+	if err := githubApp.SyncInstallations(context.Background()); err != nil {
+		klog.Warningf("error syncing github installations: %v", err)
+	}
+
+	// TODO: Clean this up ... we should have a shared login component (e.g. that implements logout?)
+	loginComponent, err := loginwithgithub.NewComponent(userComponent, githubAuth)
 	if err != nil {
 		return nil, fmt.Errorf("error building login component: %w", err)
 	}
@@ -106,4 +137,33 @@ func (s *Server) ListenAndServe(ctx context.Context, listen string, listening ch
 	}
 
 	return nil
+}
+
+func parsePrivateKey(p string) (*rsa.PrivateKey, error) {
+	b, err := os.ReadFile(p)
+	if err != nil {
+		return nil, fmt.Errorf("error reading file %q: %w", p, err)
+	}
+
+	pemBlock, rest := pem.Decode(b)
+	if pemBlock == nil {
+		return nil, fmt.Errorf("cannot decode file %q as pem", p)
+	}
+
+	if rest != nil {
+		rest = bytes.TrimSpace(rest)
+	}
+	if len(rest) != 0 {
+		return nil, fmt.Errorf("unexpected additional data in file %q", p)
+	}
+
+	if pemBlock.Type != "RSA PRIVATE KEY" {
+		return nil, fmt.Errorf("unexpected type for private key: %q", pemBlock.Type)
+	}
+
+	parsed, err := x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing private key from %q: %w", p, err)
+	}
+	return parsed, nil
 }

@@ -1,12 +1,12 @@
 package kube
 
 import (
-	"fmt"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/klog/v2"
 )
 
 type KindInfo struct {
@@ -38,14 +38,14 @@ func (k *KindInfo) GroupResource() schema.GroupResource {
 	}
 }
 
-func GetKindInfo(msg proto.Message) (*KindInfo, error) {
+func GetKindInfo(msg proto.Message) *KindInfo {
 	// TODO: Cache
 	messageDescriptor := msg.ProtoReflect().Descriptor()
 	messageOptions := messageDescriptor.Options().(*descriptorpb.MessageOptions)
 	kindVal := messageOptions.ProtoReflect().Get(E_Kind.TypeDescriptor())
 	kind, ok := kindVal.Message().Interface().(*Kind)
 	if !ok {
-		return nil, fmt.Errorf("unexpected type for kind annotation, got %T", kindVal.Message().Interface())
+		klog.Fatalf("unexpected type for kind annotation, got %T", kindVal.Message().Interface())
 	}
 
 	info := &KindInfo{}
@@ -67,19 +67,19 @@ func GetKindInfo(msg proto.Message) (*KindInfo, error) {
 	groupVersionVal := fileOptions.ProtoReflect().Get(E_GroupVersion.TypeDescriptor())
 	groupVersion, ok := groupVersionVal.Message().Interface().(*GroupVersion)
 	if !ok {
-		return nil, fmt.Errorf("unexpected type for group_version annotation, got %T", groupVersionVal.Message().Interface())
+		klog.Fatalf("unexpected type for group_version annotation, got %T", groupVersionVal.Message().Interface())
 	}
 
 	info.Group = groupVersion.Group
 	info.Version = groupVersion.Version
 	if info.Group == "" {
 		// Default from path?
-		return nil, fmt.Errorf("group_version not found; unable to determine group for %v", string(messageDescriptor.Name()))
+		klog.Fatalf("group_version not found; unable to determine group for %v", string(messageDescriptor.Name()))
 	}
 	if info.Version == "" {
 		// Default from path?
-		return nil, fmt.Errorf("group_version not found; unable to determine version for %v", string(messageDescriptor.Name()))
+		klog.Fatalf("group_version not found; unable to determine version for %v", string(messageDescriptor.Name()))
 	}
 
-	return info, nil
+	return info
 }

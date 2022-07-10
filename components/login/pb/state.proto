@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package pb;
 
-option go_package="github.com/justinsb/kweb/components/oauth/pb";
+option go_package = "github.com/justinsb/kweb/components/oauth/pb";
 
 message StateData {
   string provider_id = 1;

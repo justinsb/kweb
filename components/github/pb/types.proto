@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package pb;
+
+import "kube.proto";
+
+option go_package = "github.com/justinsb/kweb/components/ghapp/pb";
+option (kube.group_version) = {
+  group : "github.kweb.dev",
+  version : "v1alpha1"
+};
+
+message AppInstallation {
+  option (kube.kind) = {
+    kind : "AppInstallation"
+  };
+
+  kube.TypeMeta typemeta = 1;
+  kube.ObjectMeta metadata = 2;
+
+  AppInstallationSpec spec = 3;
+}
+
+message AppInstallationSpec {
+  // The capitilization isn't normal proto, but it avoids name mangling
+  int64 id = 1;
+  string userID = 2;
+  GithubAccount account = 3;
+}
+message GithubAccount {
+  int64 id = 1;
+  string login = 2;
+}
