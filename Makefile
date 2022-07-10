@@ -12,3 +12,8 @@ protoc:
 format:
 	go fmt ./...
 	find -name "*.proto" | xargs clang-format -i
+
+.PHONY: apply
+apply:
+	 kubectl apply --server-side -f components/users/kbapi/config/
+	 kubectl apply --server-side -f components/github/kbapi/config/

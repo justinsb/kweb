@@ -12,7 +12,6 @@ import (
 	"github.com/justinsb/kweb/components/kube/kubeclient"
 	userapi "github.com/justinsb/kweb/components/users/pb"
 	"golang.org/x/oauth2"
-	"google.golang.org/protobuf/encoding/prototext"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -60,13 +59,6 @@ func GetUser(ctx context.Context) *User {
 	return v.(*User)
 }
 
-func buildUserAuthKey(info *components.AuthenticationInfo) types.NamespacedName {
-	return types.NamespacedName{
-		Namespace: info.Provider.ProviderID() + "-" + info.ProviderUserID,
-		Name:      info.Provider.ProviderID() + "-" + info.ProviderUserID,
-	}
-}
-
 func buildUserKey(userID string) types.NamespacedName {
 	return types.NamespacedName{
 		Namespace: "user-" + userID,
@@ -76,60 +68,56 @@ func buildUserKey(userID string) types.NamespacedName {
 func (c *UserComponent) MapToUser(ctx context.Context, req *components.Request, token *oauth2.Token, info *components.AuthenticationInfo) (*userapi.User, error) {
 	// TODO: When namespace == name, should we make it cluster scoped and shard them differently?
 	// Although then we are expressing that we don't normally read all these objects consistently, when we split by namespace
-	userAuthKey := buildUserAuthKey(info)
-	userAuth := &userapi.UserAuth{}
-	userID := ""
-	if err := c.kube.Get(ctx, userAuthKey, userAuth); err != nil {
-		if !apierrors.IsNotFound(err) {
-			return nil, fmt.Errorf("error looking up UserAuth: %w", err)
-		}
-	} else {
-		klog.Infof("userAuth is %#v", prototext.Format(userAuth))
-		userID = userAuth.Spec.UserID
-	}
 
-	user := &userapi.User{}
-	if userID != "" {
-		userKey := buildUserKey(userID)
-		if err := c.kube.Get(ctx, userKey, user); err != nil {
-			// User not found is unexpected here, because we have a userID
-			return nil, fmt.Errorf("error looking up User: %w", err)
-		} else {
+	providerID := info.Provider.ProviderID()
+
+	// TODO: We really need an index!
+	usersClient := kubeclient.TypedClient(c.kube, &userapi.User{})
+	allUsers, err := usersClient.List(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	for _, user := range allUsers {
+		match := false
+		for _, linkedAccount := range user.GetSpec().GetLinkedAccounts() {
+			if linkedAccount.GetProviderID() != providerID {
+				continue
+			}
+			if linkedAccount.GetProviderUserID() == info.ProviderUserID {
+				match = true
+			}
+		}
+		if match {
 			return user, nil
 		}
 	}
 
-	userID = generateUserID()
+	userID := generateUserID()
 	userSpec, err := info.Provider.PopulateUserData(ctx, token, info)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build user info: %w", err)
 	}
-	userKey := buildUserKey(userID)
-	kube.InitObject(user, userKey)
-	user.Spec = userSpec
 
-	kube.InitObject(userAuth, userAuthKey)
-	userAuth.Spec = &userapi.UserAuthSpec{
-		ProviderID:       info.Provider.ProviderID(),
+	userSpec.LinkedAccounts = append(userSpec.LinkedAccounts, &userapi.LinkedAccount{
+		ProviderID:       providerID,
 		ProviderUserID:   info.ProviderUserID,
 		ProviderUserName: info.ProviderUserName,
-		UserID:           userID,
-	}
+	})
+
+	userKey := buildUserKey(userID)
+	user := &userapi.User{}
+	kube.InitObject(user, userKey)
+	user.Spec = userSpec
 
 	if err := c.ensureNamespace(ctx, user.Metadata.Namespace); err != nil {
 		return nil, err
 	}
 
-	if err := c.ensureNamespace(ctx, userAuth.Metadata.Namespace); err != nil {
-		return nil, err
-	}
-
+	// TODO: It is possible that we create two users simultaneously here
+	// We likely need to support merging users (which we probably need to do anyway if we support login with multiple accounts)
+	// TODO: We could use a SHA of the email (assuming we can get it)
 	if err := c.kube.Create(ctx, user); err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
-	}
-
-	if err := c.kube.Create(ctx, userAuth); err != nil {
-		return nil, fmt.Errorf("failed to create userAuth: %w", err)
 	}
 
 	return user, nil

@@ -7,10 +7,8 @@ import (
 
 	"github.com/google/go-github/v45/github"
 	"github.com/justinsb/kweb/components"
-	"github.com/justinsb/kweb/components/kube/kubeclient"
 	"github.com/justinsb/kweb/components/login/providers/loginwithgithub"
 	"github.com/justinsb/kweb/components/users"
-	"github.com/justinsb/kweb/components/users/pb"
 	"k8s.io/klog/v2"
 )
 
@@ -55,21 +53,10 @@ func (c *Component) DebugInfo(ctx context.Context, req *components.Request) (com
 	}
 
 	githubUserID := ""
-	{
-		// Note: need to all namespaces
-		// TODO: Fix this
-		typedClient := kubeclient.TypedClient(c.kube, &pb.UserAuth{})
-		auths, err := typedClient.List(ctx, "")
-		if err != nil {
-			return nil, err
-		}
-		for _, auth := range auths {
-			if auth.GetSpec().GetUserID() != user.UserInfo.GetMetadata().GetName() {
-				continue
-			}
-
-			if auth.GetSpec().GetProviderID() == loginwithgithub.ProviderID {
-				githubUserID = auth.GetSpec().GetProviderUserName()
+	if user != nil {
+		for _, linkedAccount := range user.UserInfo.GetSpec().GetLinkedAccounts() {
+			if linkedAccount.GetProviderID() == loginwithgithub.ProviderID {
+				githubUserID = linkedAccount.GetProviderUserName()
 			}
 		}
 	}

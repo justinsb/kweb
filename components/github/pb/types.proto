@@ -24,7 +24,6 @@ message AppInstallation {
 message AppInstallationSpec {
   // The capitilization isn't normal proto, but it avoids name mangling
   int64 id = 1;
-  string userID = 2;
   GithubAccount account = 3;
 }
 message GithubAccount {

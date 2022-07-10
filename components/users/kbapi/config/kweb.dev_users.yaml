@@ -35,6 +35,17 @@ spec:
             properties:
               email:
                 type: string
+              linkedAccounts:
+                items:
+                  properties:
+                    providerID:
+                      type: string
+                    providerUserID:
+                      type: string
+                    providerUserName:
+                      type: string
+                  type: object
+                type: array
             type: object
         type: object
     served: true
