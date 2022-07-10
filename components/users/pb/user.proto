@@ -4,37 +4,40 @@ package pb;
 
 import "kube.proto";
 
-option go_package="subtext.video/frontend/components/user/pb";
-option (kube.group_version) = { group: "kweb.dev", version: "v1alpha1" };
-
+option go_package = "github.com/justinsb/kweb/components/users/pb";
+option (kube.group_version) = {
+  group : "kweb.dev",
+  version : "v1alpha1"
+};
 
 message User {
-    option (kube.kind) = { kind: "User" };
+  option (kube.kind) = {
+    kind : "User"
+  };
 
-	kube.TypeMeta typemeta = 1;
-	kube.ObjectMeta metadata = 2;
-    
-	UserSpec spec = 3;
+  kube.TypeMeta typemeta = 1;
+  kube.ObjectMeta metadata = 2;
+
+  UserSpec spec = 3;
 }
 
-message UserSpec {
-    string email = 1;
-}
-
+message UserSpec { string email = 1; }
 
 message UserAuth {
-	option (kube.kind) = { kind: "UserAuth" };
+  option (kube.kind) = {
+    kind : "UserAuth"
+  };
 
-	kube.TypeMeta typemeta = 1;
-	kube.ObjectMeta metadata = 2;
+  kube.TypeMeta typemeta = 1;
+  kube.ObjectMeta metadata = 2;
 
-	UserAuthSpec spec = 3;
+  UserAuthSpec spec = 3;
 }
 
 message UserAuthSpec {
-	// The capitilization isn't normal proto, but it avoids name mangling
-    string userID = 1;
-    string providerID = 2;
-    string providerUserID = 3;
+  // The capitilization isn't normal proto, but it avoids name mangling
+  string userID = 1;
+  string providerID = 2;
+  string providerUserID = 3;
+  string providerUserName = 4;
 }
-

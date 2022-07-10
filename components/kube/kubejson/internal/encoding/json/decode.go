@@ -25,7 +25,7 @@ const (
 const unexpectedFmt = "unexpected token %s"
 
 // ErrUnexpectedEOF means that EOF was encountered in the middle of the input.
-var ErrUnexpectedEOF = errors.New(fmt.Sprintf("%w", io.ErrUnexpectedEOF))
+var ErrUnexpectedEOF = errors.New(fmt.Sprintf("%v", io.ErrUnexpectedEOF))
 
 // Decoder is a token-based JSON decoder.
 type Decoder struct {

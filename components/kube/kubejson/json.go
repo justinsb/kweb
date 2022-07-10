@@ -201,10 +201,7 @@ func (e encoder) marshalMessage(m protoreflect.Message, typeURL string) error {
 	defer e.EndObject()
 
 	if obj, ok := m.Interface().(kube.Object); ok {
-		kindInfo, err := kube.GetKindInfo(obj)
-		if err != nil {
-			return err
-		}
+		kindInfo := kube.GetKindInfo(obj)
 
 		if err := e.WriteName("apiVersion"); err != nil {
 			return err
@@ -284,8 +281,10 @@ func (e encoder) marshalSingular(val protoreflect.Value, fd protoreflect.FieldDe
 
 	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Uint64Kind,
 		protoreflect.Sfixed64Kind, protoreflect.Fixed64Kind:
-		// 64-bit integers are written out as JSON string.
-		e.WriteString(val.String())
+		// 64-bit integers are written out as JSON string in protojson.
+		// e.WriteString(val.String())
+		// But here we want compatability with kube, so we write them as ints
+		e.WriteInt(val.Int())
 
 	case protoreflect.FloatKind:
 		// Encoder.WriteFloat handles the special numbers NaN and infinites.

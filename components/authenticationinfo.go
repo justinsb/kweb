@@ -8,13 +8,15 @@ import (
 )
 
 type AuthenticationInfo struct {
-	Provider       AuthenticationProvider
-	ProviderUserID string
+	Provider         AuthenticationProvider
+	ProviderUserID   string
+	ProviderUserName string
 }
 
 // AuthenticationProvider is implemented by authentication services.
 type AuthenticationProvider interface {
 	ProviderID() string
+	// Redeem is called from the oauth2 callback request; it normally exchanges a code for a token for the logged-in user
 	Redeem(ctx context.Context, redirectURI string, code string) (*AuthenticationInfo, *oauth2.Token, error)
 	GetLoginURL(ctx context.Context, redirectURI, state string) string
 

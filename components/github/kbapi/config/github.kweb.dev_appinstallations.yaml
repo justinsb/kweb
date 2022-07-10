@@ -5,14 +5,14 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: userauths.kweb.dev
+  name: appinstallations.github.kweb.dev
 spec:
-  group: kweb.dev
+  group: github.kweb.dev
   names:
-    kind: UserAuth
-    listKind: UserAuthList
-    plural: userauths
-    singular: userauth
+    kind: AppInstallation
+    listKind: AppInstallationList
+    plural: appinstallations
+    singular: appinstallation
   scope: Namespaced
   versions:
   - name: v1alpha1
@@ -33,12 +33,17 @@ spec:
             type: object
           spec:
             properties:
-              providerID:
-                type: string
-              providerUserID:
-                type: string
-              providerUserName:
-                type: string
+              account:
+                properties:
+                  id:
+                    format: int64
+                    type: integer
+                  login:
+                    type: string
+                type: object
+              id:
+                format: int64
+                type: integer
               userID:
                 type: string
             type: object

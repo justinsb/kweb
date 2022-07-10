@@ -11,23 +11,21 @@ import (
 
 const sessionKeyUserID = "userid"
 
-func (c *UserComponent) userFromSession(ctx context.Context) (*userapi.User, error) {
+func (c *UserComponent) userFromSession(ctx context.Context) (*User, error) {
 	request := components.GetRequest(ctx)
 
 	userID := request.Session.GetString(sessionKeyUserID)
 	if userID == "" {
 		return nil, nil
 	}
-
 	user := &userapi.User{}
-
 	key := buildUserKey(userID)
 	if err := c.kube.Get(ctx, key, user); err != nil {
 		// apierrors.IsNotFound would be unexpected here; the userid is set in the session
 		return nil, fmt.Errorf("error fetching user %v: %w", key, err)
 	}
 
-	return user, nil
+	return &User{UserInfo: user}, nil
 }
 
 func Logout(ctx context.Context) {

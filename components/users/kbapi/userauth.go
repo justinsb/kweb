@@ -14,7 +14,8 @@ type UserAuth struct {
 }
 
 type UserAuthSpec struct {
-	UserID         string `json:"userID,omitempty"`
-	ProviderID     string `json:"providerID,omitempty"`
-	ProviderUserID string `json:"providerUserID,omitempty"`
+	UserID           string `json:"userID,omitempty"`
+	ProviderID       string `json:"providerID,omitempty"`
+	ProviderUserID   string `json:"providerUserID,omitempty"`
+	ProviderUserName string `json:"providerUserName,omitempty"`
 }

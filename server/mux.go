@@ -25,6 +25,7 @@ type ErrorHandler struct {
 }
 
 func (m *ErrorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	klog.Infof("ErrorHandler %v: %+v", m.Status, r)
 	http.Error(w, http.StatusText(m.Status), m.Status)
 	return
 }
