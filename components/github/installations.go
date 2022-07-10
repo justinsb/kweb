@@ -9,7 +9,6 @@ import (
 	"github.com/justinsb/kweb/components/github/pb"
 	"github.com/justinsb/kweb/components/kube"
 	"github.com/justinsb/kweb/components/kube/kubeclient"
-	userspb "github.com/justinsb/kweb/components/users/pb"
 	"github.com/justinsb/kweb/debug"
 	"google.golang.org/protobuf/encoding/prototext"
 	"k8s.io/apimachinery/pkg/types"
@@ -42,23 +41,12 @@ func (c *Component) SyncInstallations(ctx context.Context) error {
 			klog.Infof("github installation: %v", debug.JSON(installation))
 			githubUserID := installation.GetAccount().GetID()
 
-			userAuthKey := types.NamespacedName{Namespace: fmt.Sprintf("github-%d", githubUserID), Name: fmt.Sprintf("github-%d", githubUserID)}
-			userAuth := &userspb.UserAuth{}
-			// TODO: Move to login package?
-			if err := c.kube.Get(ctx, userAuthKey, userAuth); err != nil {
-				return fmt.Errorf("could not find UserAuth %v: %w", userAuthKey, err)
-			}
-
-			klog.Infof("userauth is %v", prototext.Format(userAuth))
-
 			kubeInstallation := &pb.AppInstallation{}
-			userNamespace := "user-" + userAuth.GetSpec().UserID
-			kube.InitObject(kubeInstallation, types.NamespacedName{Namespace: userNamespace, Name: strconv.FormatInt(installation.GetID(), 10)})
+			kube.InitObject(kubeInstallation, types.NamespacedName{Namespace: fmt.Sprintf("github-%d", githubUserID), Name: strconv.FormatInt(installation.GetID(), 10)})
 			kubeInstallation.Spec = &pb.AppInstallationSpec{
-				Id:     installation.GetID(),
-				UserID: userAuth.GetSpec().GetUserID(),
+				Id: installation.GetID(),
 				Account: &pb.GithubAccount{
-					Id:    githubUserID,
+					Id:    installation.GetAccount().GetID(),
 					Login: installation.GetAccount().GetLogin(),
 				},
 			}

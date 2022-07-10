@@ -188,7 +188,7 @@ type ObjectMeta struct {
 	Name            string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Namespace       string `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
 	ResourceVersion string `protobuf:"bytes,3,opt,name=resource_version,json=resourceVersion,proto3" json:"resource_version,omitempty"`
-	Uid             string `protobuf:"bytes,4,opt,name=uid,proto3" json:"uid,omitempty"` //google.protobuf.Timestamp creation_timestamp = ;
+	Uid             string `protobuf:"bytes,4,opt,name=uid,proto3" json:"uid,omitempty"` // google.protobuf.Timestamp creation_timestamp = ;
 }
 
 func (x *ObjectMeta) Reset() {

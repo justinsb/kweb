@@ -10,15 +10,6 @@ import (
 
 //+kubebuilder:object:root=true
 
-// UserAuthList contains a list of UserAuth
-type UserAuthList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []UserAuth `json:"items"`
-}
-
-//+kubebuilder:object:root=true
-
 // UserList contains a list of User
 type UserList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -36,12 +27,8 @@ var (
 		Resource: GroupVersion.WithResource("users"),
 		objects:  []runtime.Object{&User{}, &UserList{}},
 	}
-	KindUserAuth = KindInfo{
-		Resource: GroupVersion.WithResource("userauths"),
-		objects:  []runtime.Object{&UserAuth{}, &UserAuthList{}},
-	}
 
-	AllKinds = []KindInfo{KindUser, KindUserAuth}
+	AllKinds = []KindInfo{KindUser}
 )
 
 //+kubebuilder:object:generate=false

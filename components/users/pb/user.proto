@@ -21,22 +21,13 @@ message User {
   UserSpec spec = 3;
 }
 
-message UserSpec { string email = 1; }
-
-message UserAuth {
-  option (kube.kind) = {
-    kind : "UserAuth"
-  };
-
-  kube.TypeMeta typemeta = 1;
-  kube.ObjectMeta metadata = 2;
-
-  UserAuthSpec spec = 3;
+message UserSpec {
+  string email = 1;
+  repeated LinkedAccount linked_accounts = 2;
 }
 
-message UserAuthSpec {
+message LinkedAccount {
   // The capitilization isn't normal proto, but it avoids name mangling
-  string userID = 1;
   string providerID = 2;
   string providerUserID = 3;
   string providerUserName = 4;

@@ -14,5 +14,12 @@ type User struct {
 }
 
 type UserSpec struct {
-	Email string `json:"email,omitempty"`
+	Email          string          `json:"email,omitempty"`
+	LinkedAccounts []LinkedAccount `json:"linkedAccounts,omitempty"`
+}
+
+type LinkedAccount struct {
+	ProviderID       string `json:"providerID,omitempty"`
+	ProviderUserID   string `json:"providerUserID,omitempty"`
+	ProviderUserName string `json:"providerUserName,omitempty"`
 }
