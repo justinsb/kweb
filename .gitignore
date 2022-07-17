@@ -3,3 +3,6 @@
 
 # Ignore IDE files from vscode
 .vscode/
+
+# Ignore the compiled binary (as produced by go build)
+kweb

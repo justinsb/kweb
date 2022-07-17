@@ -11,7 +11,7 @@ import (
 
 const sessionKeyUserID = "userid"
 
-func (c *UserComponent) userFromSession(ctx context.Context) (*User, error) {
+func (c *UserComponent) userFromSession(ctx context.Context) (*userapi.User, error) {
 	request := components.GetRequest(ctx)
 
 	userID := request.Session.GetString(sessionKeyUserID)
@@ -25,7 +25,7 @@ func (c *UserComponent) userFromSession(ctx context.Context) (*User, error) {
 		return nil, fmt.Errorf("error fetching user %v: %w", key, err)
 	}
 
-	return &User{UserInfo: user}, nil
+	return user, nil
 }
 
 func Logout(ctx context.Context) {

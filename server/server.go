@@ -56,6 +56,9 @@ func New() (*Server, error) {
 
 	githubAppID := os.Getenv("GITHUB_APP_ID")
 	// TODO: Get from kube secret or file?
+	if os.Getenv("GITHUB_APP_KEY") == "" {
+		return nil, fmt.Errorf("expected GITHUB_APP_KEY to be set")
+	}
 	rsaPrivateKey, err := parsePrivateKey(os.Getenv("GITHUB_APP_KEY"))
 	if err != nil {
 		return nil, err
