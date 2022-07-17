@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/justinsb/kweb/templates/mustache"
+	"github.com/justinsb/kweb/templates/mustache/fieldpath"
 	"github.com/justinsb/kweb/templates/scopes"
 	"golang.org/x/net/html"
 	"k8s.io/klog/v2"
@@ -43,9 +44,84 @@ var directiveAttribute = map[string]bool{
 }
 
 func (r *Render) renderElementNode(node *html.Node) error {
-	// TODO: Handle directive attributes
+	ngForVariable := ""
+	ngForList := ""
 
-	return r.renderElementNodeInner(node)
+	var ngIfExpression fieldpath.Condition
+	ngIfExpressionString := ""
+
+	for _, attr := range node.Attr {
+		if !directiveAttribute[attr.Key] {
+			continue
+		}
+
+		switch attr.Key {
+		case "*ngfor":
+			value := attr.Val
+
+			tokens := strings.Fields(value)
+			if len(tokens) == 4 && tokens[0] == "let" && tokens[2] == "of" {
+				ngForVariable = tokens[1]
+				ngForList = tokens[3]
+			} else {
+				return fmt.Errorf("cannot parse *ngFor=%q", attr.Key)
+			}
+
+		case "*ngif":
+			ngIfExpressionString = attr.Val
+
+			// TODO: precompile
+			// TODO: EvalOptions OptOptimize (once we precompile)
+			// TODO: Replace with strongly typed variables (particularly for request)
+
+			c, err := fieldpath.ParseCondition(ngIfExpressionString)
+			if err != nil {
+				return fmt.Errorf("error parsing ngIf condition %q: %w", ngIfExpressionString, err)
+			}
+			ngIfExpression = c
+		default:
+			return fmt.Errorf("unhandled directive attribute %v", attr.Key)
+		}
+	}
+
+	if ngIfExpression != nil {
+		match := ngIfExpression.EvalCondition(r.data)
+		if !match {
+			return nil
+		}
+	}
+
+	if ngForList != "" {
+		value, found := r.data.Values[ngForList]
+		if !found {
+			return fmt.Errorf("value %q not found", ngForList)
+		}
+		var val interface{}
+		if value.Function != nil {
+			val = value.Function()
+		} else {
+			val = value.Value
+		}
+		list, ok := val.([]interface{})
+		if !ok {
+			return fmt.Errorf("value %q was not list, was %T", ngForList, val)
+		}
+		for _, item := range list {
+			key := ngForVariable
+			oldValue := r.data.Values[key]
+			r.data.Values[key] = scopes.Value{
+				Value: item,
+			}
+
+			if err := r.renderElementNodeInner(node); err != nil {
+				return nil
+			}
+			r.data.Values[key] = oldValue
+		}
+		return nil
+	} else {
+		return r.renderElementNodeInner(node)
+	}
 }
 
 // This logic is based on the logic in golang's html.Render

@@ -158,5 +158,14 @@ func (p *Component) DebugInfo(ctx context.Context, req *components.Request) (com
 }
 
 const debugTemplate = `
-Hello {{ user.spec.email }}
+<div *ngIf="user">
+<span >Hello {{ user.spec.email }}</span>
+<span><a href="/_login/logout">Logout</a></span>
+</div>
+
+<div *ngIf="!user">
+You are not currently logged in; click to log in
+<span><a href="/_login/oauth2/github">Login</a></span>
+</div>
+
 `
