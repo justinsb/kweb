@@ -37,7 +37,7 @@ func (c *Component) DebugInfo(ctx context.Context, req *components.Request) (com
 	if user == nil {
 		html = "not logged in"
 	} else {
-		html = "logged in as " + user.UserInfo.GetSpec().GetEmail()
+		html = "logged in as " + user.GetSpec().GetEmail()
 	}
 
 	html += "<br/>"
@@ -54,7 +54,7 @@ func (c *Component) DebugInfo(ctx context.Context, req *components.Request) (com
 
 	githubUserID := ""
 	if user != nil {
-		for _, linkedAccount := range user.UserInfo.GetSpec().GetLinkedAccounts() {
+		for _, linkedAccount := range user.GetSpec().GetLinkedAccounts() {
 			if linkedAccount.GetProviderID() == loginwithgithub.ProviderID {
 				githubUserID = linkedAccount.GetProviderUserName()
 			}

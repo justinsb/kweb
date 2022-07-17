@@ -38,7 +38,7 @@ func (r *requestInfo) GetClient(ctx context.Context, options github.Installation
 		return nil, nil
 	}
 
-	ns := user.UserInfo.GetMetadata().GetNamespace()
+	ns := user.GetMetadata().GetNamespace()
 	typed := kubeclient.TypedClient(r.component.kube, &pb.AppInstallation{})
 	installations, err := typed.List(ctx, ns)
 	if err != nil {

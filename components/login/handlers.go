@@ -1,6 +1,7 @@
 package login
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"github.com/justinsb/kweb/components/login/pb"
 	"github.com/justinsb/kweb/components/users"
 	userapi "github.com/justinsb/kweb/components/users/pb"
+	"github.com/justinsb/kweb/templates"
 	"golang.org/x/oauth2"
 	"k8s.io/klog/v2"
 )
@@ -75,7 +77,6 @@ func (p *Component) OAuthCallback(ctx context.Context, req *components.Request) 
 		return nil, err
 	}
 
-	klog.Infof("request is %#v", req)
 	stateObj := req.Session.Get(sessionOauth2State)
 	var state *pb.StateData
 	if stateObj != nil {
@@ -135,16 +136,27 @@ func (p *Component) OAuthCallback(ctx context.Context, req *components.Request) 
 // DebugInfo is a simple endpoint for debugging, while we can't do much more
 // TODO: Remove me!
 func (p *Component) DebugInfo(ctx context.Context, req *components.Request) (components.Response, error) {
-	user := users.GetUser(ctx)
-	var html string
-	if user == nil {
-		html = "not logged in"
-	} else {
-		html = "logged in as " + user.UserInfo.GetSpec().GetEmail()
-	}
+	// user := users.GetUser(ctx)
+	// var html string
+	// if user == nil {
+	// 	html = "not logged in"
+	// } else {
+	// 	html = "logged in as " + user.UserInfo.GetSpec().GetEmail()
+	// }
 
+	template := templates.Template{
+		Data: []byte(debugTemplate),
+	}
+	var b bytes.Buffer
+	if err := template.RenderHTML(ctx, &b, req); err != nil {
+		return nil, err
+	}
 	response := components.SimpleResponse{
-		Body: []byte(html),
+		Body: b.Bytes(),
 	}
 	return response, nil
 }
+
+const debugTemplate = `
+Hello {{ user.spec.email }}
+`

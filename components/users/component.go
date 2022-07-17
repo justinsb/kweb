@@ -49,14 +49,14 @@ func (c *UserComponent) ProcessRequest(ctx context.Context, req *components.Requ
 func (c *UserComponent) RegisterHandlers(s *components.Server, mux *http.ServeMux) {
 }
 
-var contextKeyUser = &User{}
+var contextKeyUser = &userapi.User{}
 
-func GetUser(ctx context.Context) *User {
+func GetUser(ctx context.Context) *userapi.User {
 	v := ctx.Value(contextKeyUser)
 	if v == nil {
 		return nil
 	}
-	return v.(*User)
+	return v.(*userapi.User)
 }
 
 func buildUserKey(userID string) types.NamespacedName {
