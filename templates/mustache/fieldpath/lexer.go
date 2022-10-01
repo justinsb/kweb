@@ -47,7 +47,7 @@ runeLoop:
 
 		s = append(s, r)
 	}
-	return token{tokenTypeQuotedString, string(s)}, nil
+	return token{TokenType: tokenTypeQuotedString, Value: string(s)}, nil
 }
 
 func (l *lexer) lexIdentifier(first rune) (token, error) {
@@ -75,7 +75,7 @@ runeLoop:
 			}
 		}
 	}
-	return token{tokenTypeIdentifier, string(s)}, nil
+	return token{TokenType: tokenTypeIdentifier, Value: string(s)}, nil
 }
 
 func (l *lexer) Next() (token, error) {
@@ -84,7 +84,7 @@ top:
 
 	switch r {
 	case lexparse.LexerRuneEOF:
-		return token{tokenTypeEOF, ""}, nil
+		return token{TokenType: tokenTypeEOF, Value: ""}, nil
 
 	case lexparse.LexerRuneError:
 		return token{}, l.Err()
@@ -93,15 +93,15 @@ top:
 		goto top
 
 	case '.':
-		return token{tokenTypeDot, "."}, nil
+		return token{TokenType: tokenTypeDot, Value: "."}, nil
 	case '[':
-		return token{tokenTypeLeftSquareBracket, "["}, nil
+		return token{TokenType: tokenTypeLeftSquareBracket, Value: "["}, nil
 	case ']':
-		return token{tokenTypeRightSquareBracket, "]"}, nil
+		return token{TokenType: tokenTypeRightSquareBracket, Value: "]"}, nil
 	case '=':
-		return token{tokenTypeEquals, "="}, nil
+		return token{TokenType: tokenTypeEquals, Value: "="}, nil
 	case '!':
-		return token{tokenTypeNot, "!"}, nil
+		return token{TokenType: tokenTypeNot, Value: "!"}, nil
 	case '"':
 		return l.lexQuotedString(r)
 	case '\'':

@@ -41,7 +41,7 @@ runeLoop:
 			s = append(s, r)
 		}
 	}
-	return token{tokenTypeOther, string(s)}, nil
+	return token{TokenType: tokenTypeOther, Value: string(s)}, nil
 }
 
 func (l *lexer) Next() (token, error) {
@@ -49,7 +49,7 @@ func (l *lexer) Next() (token, error) {
 
 	switch r {
 	case lexparse.LexerRuneEOF:
-		return token{tokenTypeEOF, ""}, nil
+		return token{TokenType: tokenTypeEOF, Value: ""}, nil
 
 	case lexparse.LexerRuneError:
 		return token{}, l.Err()
@@ -58,14 +58,14 @@ func (l *lexer) Next() (token, error) {
 		r2 := l.Peek()
 		if r2 == '{' {
 			l.Read()
-			return token{tokenTypeLeftMustache, "{{"}, nil
+			return token{TokenType: tokenTypeLeftMustache, Value: "{{"}, nil
 		}
 
 	case '}':
 		r2 := l.Peek()
 		if r2 == '}' {
 			l.Read()
-			return token{tokenTypeRightMustache, "}}"}, nil
+			return token{TokenType: tokenTypeRightMustache, Value: "}}"}, nil
 		}
 	}
 
