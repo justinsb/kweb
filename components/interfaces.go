@@ -29,7 +29,7 @@ func GetRequest(ctx context.Context) *Request {
 }
 
 type Component interface {
-	RegisterHandlers(server *Server, mux *http.ServeMux)
+	RegisterHandlers(server *Server, mux *http.ServeMux) error
 }
 
 type RequestFilterChain func(ctx context.Context, req *Request) (Response, error)

@@ -25,9 +25,10 @@ func New(kube *kubeclient.Client, githubAppID string, appPrivateKey *rsa.Private
 	}, nil
 }
 
-func (c *Component) RegisterHandlers(s *components.Server, mux *http.ServeMux) {
+func (c *Component) RegisterHandlers(s *components.Server, mux *http.ServeMux) error {
 	mux.HandleFunc("/_ghapp/debug", s.ServeHTTP(c.DebugInfo))
 	mux.HandleFunc("/_ghapp/", s.ServeHTTP(c.doEntryPoint))
+	return nil
 }
 
 var _ components.RequestFilter = &Component{}

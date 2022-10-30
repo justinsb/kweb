@@ -66,6 +66,10 @@ func (p *Component) getRedirectURI(req *components.Request) string {
 	}
 	u.Host = req.Host
 
+	if req.BrowserUsingHTTPS() {
+		u.Scheme = "https"
+	}
+
 	u.Path = "/_login/oauth2-callback/" + p.Provider.ProviderID()
 	return u.String()
 }

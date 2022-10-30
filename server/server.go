@@ -10,15 +10,19 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/justinsb/kweb/components"
 	"github.com/justinsb/kweb/components/cookies"
 	"github.com/justinsb/kweb/components/github"
+	"github.com/justinsb/kweb/components/healthcheck"
 	"github.com/justinsb/kweb/components/kube/kubeclient"
+	"github.com/justinsb/kweb/components/pages"
 
 	// "github.com/justinsb/kweb/components/login/providers"
 	"github.com/justinsb/kweb/components/login/providers/loginwithgithub"
+	"github.com/justinsb/kweb/components/login/providers/loginwithgoogle"
 	"github.com/justinsb/kweb/components/sessions"
 	"github.com/justinsb/kweb/components/users"
 
@@ -27,9 +31,22 @@ import (
 
 type Server struct {
 	components.Server
+
+	mutex sync.Mutex
+	mux   *http.ServeMux
 }
 
-func New() (*Server, error) {
+type Options struct {
+	UserNamespaceStrategy users.NamespaceMapper
+	Pages                 pages.Options
+}
+
+func (o *Options) InitDefaults(appName string) {
+	o.UserNamespaceStrategy = users.NewSingleNamespaceMapper(appName)
+	o.Pages.InitDefaults(appName)
+}
+
+func New(opt Options) (*Server, error) {
 	restConfig, err := GetRESTConfig()
 	if err != nil {
 		return nil, fmt.Errorf("error getting kubernetes configuration: %w", err)
@@ -37,66 +54,96 @@ func New() (*Server, error) {
 
 	s := &Server{}
 
+	healthcheckComponent := healthcheck.NewHealthcheckComponent()
+	s.Components = append(s.Components, healthcheckComponent)
+
 	cookiesComponent := cookies.NewCookiesComponent()
 	s.Components = append(s.Components, cookiesComponent)
 
 	sessionComponent := sessions.NewSessionComponent()
 	s.Components = append(s.Components, sessionComponent)
 
+	pagesComponent := pages.New(opt.Pages)
+	s.Components = append(s.Components, pagesComponent)
+
 	kubeClient, err := kubeclient.New(restConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error building kubernetes controller client: %w", err)
 	}
 
-	userComponent, err := users.NewUserComponent(kubeClient)
+	userComponent, err := users.NewUserComponent(kubeClient, opt.UserNamespaceStrategy)
 	if err != nil {
 		return nil, fmt.Errorf("error building user component: %w", err)
 	}
 	s.Components = append(s.Components, userComponent)
 
 	githubAppID := os.Getenv("GITHUB_APP_ID")
-	// TODO: Get from kube secret or file?
-	if os.Getenv("GITHUB_APP_KEY") == "" {
-		return nil, fmt.Errorf("expected GITHUB_APP_KEY to be set")
+	if githubAppID != "" {
+		// TODO: Get from kube secret or file?
+		if os.Getenv("GITHUB_APP_KEY") == "" {
+			return nil, fmt.Errorf("expected GITHUB_APP_KEY to be set")
+		}
+		rsaPrivateKey, err := parsePrivateKey(os.Getenv("GITHUB_APP_KEY"))
+		if err != nil {
+			return nil, err
+		}
+		githubApp, err := github.New(kubeClient, githubAppID, rsaPrivateKey)
+		if err != nil {
+			return nil, fmt.Errorf("error building github component: %w", err)
+		}
+		s.Components = append(s.Components, githubApp)
+
+		// TODO: Cron-type tasks
+		if err := githubApp.SyncInstallations(context.Background()); err != nil {
+			klog.Warningf("error syncing github installations: %v", err)
+		}
 	}
-	rsaPrivateKey, err := parsePrivateKey(os.Getenv("GITHUB_APP_KEY"))
-	if err != nil {
-		return nil, err
-	}
-	githubApp, err := github.New(kubeClient, githubAppID, rsaPrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("error building github component: %w", err)
-	}
-	s.Components = append(s.Components, githubApp)
 
 	clientID := os.Getenv("OAUTH2_CLIENT_ID")
-	clientSecret := os.Getenv("OAUTH2_CLIENT_SECRET")
-	// googleProvider, err := loginwithgoogle.NewGoogleProvider("google", clientID, clientSecret)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error building google provider: %w", err)
-	// }
-	githubAuth, err := loginwithgithub.NewGithubProvider(clientID, clientSecret)
-	if err != nil {
-		return nil, fmt.Errorf("error building github auth provider: %w", err)
-	}
+	if clientID != "" {
+		clientSecret := os.Getenv("OAUTH2_CLIENT_SECRET")
 
-	// TODO: Cron-type tasks
-	if err := githubApp.SyncInstallations(context.Background()); err != nil {
-		klog.Warningf("error syncing github installations: %v", err)
-	}
+		isGoogle := false
+		if isGoogle {
+			googleProvider, err := loginwithgoogle.NewGoogleProvider("google", clientID, clientSecret)
+			if err != nil {
+				return nil, fmt.Errorf("error building google provider: %w", err)
+			}
 
-	// TODO: Clean this up ... we should have a shared login component (e.g. that implements logout?)
-	loginComponent, err := loginwithgithub.NewComponent(userComponent, githubAuth)
-	if err != nil {
-		return nil, fmt.Errorf("error building login component: %w", err)
+			// TODO: Clean this up ... we should have a shared login component (e.g. that implements logout?)
+			loginComponent, err := loginwithgoogle.NewComponent(userComponent, googleProvider)
+			if err != nil {
+				return nil, fmt.Errorf("error building login component: %w", err)
+			}
+			s.Components = append(s.Components, loginComponent)
+		} else {
+			githubAuth, err := loginwithgithub.NewGithubProvider(clientID, clientSecret)
+			if err != nil {
+				return nil, fmt.Errorf("error building github auth provider: %w", err)
+			}
+
+			// TODO: Clean this up ... we should have a shared login component (e.g. that implements logout?)
+			loginComponent, err := loginwithgithub.NewComponent(userComponent, githubAuth)
+			if err != nil {
+				return nil, fmt.Errorf("error building login component: %w", err)
+			}
+			s.Components = append(s.Components, loginComponent)
+		}
 	}
-	s.Components = append(s.Components, loginComponent)
 
 	return s, nil
 }
 
 func (s *Server) ListenAndServe(ctx context.Context, listen string, listening chan<- net.Addr) error {
-	defer close(listening)
+	defer func() {
+		if listening != nil {
+			close(listening)
+		}
+	}()
+
+	if err := s.ensureMux(); err != nil {
+		return err
+	}
 
 	klog.Infof("starting server on %q", listen)
 

@@ -21,12 +21,38 @@ import (
 )
 
 type UserComponent struct {
-	kube *kubeclient.Client
+	kube            *kubeclient.Client
+	namespaceMapper NamespaceMapper
 }
 
-func NewUserComponent(kube *kubeclient.Client) (*UserComponent, error) {
+type NamespaceMapper interface {
+	NamespaceForUserID(userID string) string
+}
+
+type SingleNamespaceMapper struct {
+	namespace string
+}
+
+func NewSingleNamespaceMapper(ns string) *SingleNamespaceMapper {
+	return &SingleNamespaceMapper{namespace: ns}
+}
+
+func (m *SingleNamespaceMapper) NamespaceForUserID(userID string) string {
+	return m.namespace
+}
+
+type NamespacePerUser struct {
+	prefix string
+}
+
+func (m *NamespacePerUser) NamespaceForUserID(userID string) string {
+	return m.prefix + userID
+}
+
+func NewUserComponent(kube *kubeclient.Client, namespaceMapper NamespaceMapper) (*UserComponent, error) {
 	c := &UserComponent{
-		kube: kube,
+		kube:            kube,
+		namespaceMapper: namespaceMapper,
 	}
 
 	return c, nil
@@ -46,7 +72,8 @@ func (c *UserComponent) ProcessRequest(ctx context.Context, req *components.Requ
 	return next(ctx, req)
 }
 
-func (c *UserComponent) RegisterHandlers(s *components.Server, mux *http.ServeMux) {
+func (c *UserComponent) RegisterHandlers(s *components.Server, mux *http.ServeMux) error {
+	return nil
 }
 
 var contextKeyUser = &userapi.User{}
@@ -59,9 +86,9 @@ func GetUser(ctx context.Context) *userapi.User {
 	return v.(*userapi.User)
 }
 
-func buildUserKey(userID string) types.NamespacedName {
+func (c *UserComponent) buildUserKey(userID string) types.NamespacedName {
 	return types.NamespacedName{
-		Namespace: "user-" + userID,
+		Namespace: c.namespaceMapper.NamespaceForUserID(userID),
 		Name:      userID,
 	}
 }
@@ -104,7 +131,7 @@ func (c *UserComponent) MapToUser(ctx context.Context, req *components.Request, 
 		ProviderUserName: info.ProviderUserName,
 	})
 
-	userKey := buildUserKey(userID)
+	userKey := c.buildUserKey(userID)
 	user := &userapi.User{}
 	kube.InitObject(user, userKey)
 	user.Spec = userSpec

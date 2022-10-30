@@ -14,7 +14,8 @@ func NewCookiesComponent() components.Component {
 type CookiesComponent struct {
 }
 
-func (c *CookiesComponent) RegisterHandlers(s *components.Server, mux *http.ServeMux) {
+func (c *CookiesComponent) RegisterHandlers(s *components.Server, mux *http.ServeMux) error {
+	return nil
 }
 
 var contextKeyResponseCookies = &responseCookies{}
