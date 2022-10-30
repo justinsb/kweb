@@ -1,0 +1,11 @@
+<body>
+  <h1>Welcome!</h1>
+
+  <div>
+    <span *ngIf="user">user is set to {{user.spec.email}}</span>
+  </div>
+  <div>
+    <span *ngIf="user"><a href="/_login/logout">Logout</a></span>
+    <span *ngIf="!user"><a href="/_login/oauth2/github">Login</a></span>
+  </div>
+</body>

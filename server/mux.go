@@ -1,23 +1,35 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 
 	"k8s.io/klog/v2"
 )
 
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	klog.Infof("%s %s", r.Method, r.URL)
+func (s *Server) ensureMux() error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.mux != nil {
+		return nil
+	}
 
 	mux := http.NewServeMux()
 	for _, component := range s.Components {
-		component.RegisterHandlers(&s.Server, mux)
+		if err := component.RegisterHandlers(&s.Server, mux); err != nil {
+			return fmt.Errorf("error registering component handlers for %T: %w", component, err)
+		}
 	}
 
-	// Fallback
-	mux.Handle("/", &ErrorHandler{Status: http.StatusNotFound})
+	s.mux = mux
+	return nil
+}
 
-	mux.ServeHTTP(w, r)
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	klog.Infof("%s %s", r.Method, r.URL)
+
+	s.mux.ServeHTTP(w, r)
 }
 
 type ErrorHandler struct {

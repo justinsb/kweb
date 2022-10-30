@@ -21,6 +21,7 @@ RUN CGO_ENABLED=0 go build -v \
   github.com/justinsb/kweb/...
 
 COPY apps/sso/*.go apps/sso/
+COPY apps/sso/pages apps/sso/pages
 
 RUN CGO_ENABLED=0 go build -v -o /kweb-sso ./apps/sso
 

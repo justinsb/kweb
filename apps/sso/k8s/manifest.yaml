@@ -11,7 +11,7 @@ metadata:
   name: kweb-sso
   namespace: kweb-sso-system
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: kweb-sso
@@ -24,6 +24,9 @@ spec:
       containers:
       - image: image-repo/kweb-sso:latest
         name: kweb-sso
+        envFrom:
+        - secretRef:
+            name: kweb-sso
         ports:
         - name: http
           containerPort: 8080
@@ -60,7 +63,14 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: kweb-sso
-rules: []
+rules:
+- apiGroups: ["kweb.dev"]
+  resources: ["users"]
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
+
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

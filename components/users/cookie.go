@@ -19,7 +19,7 @@ func (c *UserComponent) userFromSession(ctx context.Context) (*userapi.User, err
 		return nil, nil
 	}
 	user := &userapi.User{}
-	key := buildUserKey(userID)
+	key := c.buildUserKey(userID)
 	if err := c.kube.Get(ctx, key, user); err != nil {
 		// apierrors.IsNotFound would be unexpected here; the userid is set in the session
 		return nil, fmt.Errorf("error fetching user %v: %w", key, err)
@@ -32,11 +32,9 @@ func Logout(ctx context.Context) {
 	request := components.GetRequest(ctx)
 
 	request.Session.Clear(sessionKeyUserID)
-
 }
 
 func SetCurrentUser(ctx context.Context, token *oauth2.Token, providerKey string, user *userapi.User) error {
-
 	// TODO: Where should we store the token?
 
 	req := components.GetRequest(ctx)

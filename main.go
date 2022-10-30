@@ -14,6 +14,26 @@ import (
 )
 
 type App struct {
+	options Options
+}
+
+type Options struct {
+	Server server.Options
+}
+
+func NewApp(opt *Options) *App {
+	a := &App{options: *opt}
+	return a
+}
+
+func NewOptions(appName string) *Options {
+	o := &Options{}
+	o.InitDefaults(appName)
+	return o
+}
+
+func (o *Options) InitDefaults(appName string) {
+	o.Server.InitDefaults(appName)
 }
 
 func (a *App) RunFromMain() {
@@ -33,7 +53,7 @@ func (a *App) run(ctx context.Context) error {
 
 	flag.Parse()
 
-	s, err := server.New()
+	s, err := server.New(a.options.Server)
 	if err != nil {
 		return err
 	}

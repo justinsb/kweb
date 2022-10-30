@@ -5,9 +5,7 @@ import (
 	cryptorand "crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"net"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -93,8 +91,8 @@ func (c *SessionComponent) ProcessRequest(ctx context.Context, req *components.R
 				Path:     "/", // Otherwise cookie is filtered
 			}
 
-			if req.Request.TLS == nil {
-				if isLocalhost(req) {
+			if !req.BrowserUsingHTTPS() {
+				if req.IsLocalhost() {
 					klog.Warningf("setting cookie to _not_ be secure, because running on localhost")
 					sessionCookie.Secure = false
 				} else {
@@ -118,23 +116,6 @@ func (c *SessionComponent) ProcessRequest(ctx context.Context, req *components.R
 	return response, nil
 }
 
-func isLocalhost(req *components.Request) bool {
-	host := req.Request.Host
-	if !strings.HasPrefix(host, "localhost") {
-		return false
-	}
-	if host == "localhost" {
-		return true
-	}
-	if strings.HasPrefix(host, "localhost:") {
-		h, _, err := net.SplitHostPort(host)
-		if err == nil && h == "localhost" {
-			return true
-		}
-	}
-	return false
-}
-
 func (c *SessionComponent) generateSessionID() (string, error) {
 	b := make([]byte, 32, 32)
 	if _, err := cryptorand.Read(b); err != nil {
@@ -144,5 +125,6 @@ func (c *SessionComponent) generateSessionID() (string, error) {
 	return sessionID, nil
 }
 
-func (c *SessionComponent) RegisterHandlers(s *components.Server, mux *http.ServeMux) {
+func (c *SessionComponent) RegisterHandlers(s *components.Server, mux *http.ServeMux) error {
+	return nil
 }

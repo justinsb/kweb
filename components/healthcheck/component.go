@@ -14,8 +14,9 @@ func NewHealthcheckComponent() components.Component {
 type HealthcheckComponent struct {
 }
 
-func (c *HealthcheckComponent) RegisterHandlers(s *components.Server, mux *http.ServeMux) {
+func (c *HealthcheckComponent) RegisterHandlers(s *components.Server, mux *http.ServeMux) error {
 	mux.HandleFunc("/healthz", s.ServeHTTP(c.Healthz))
+	return nil
 }
 
 func (p *HealthcheckComponent) Healthz(ctx context.Context, req *components.Request) (components.Response, error) {
