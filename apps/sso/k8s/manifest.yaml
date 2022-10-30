@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kweb-sso-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: kweb-sso
+  name: kweb-sso
+  namespace: kweb-sso-system
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: kweb-sso
+  template:
+    metadata:
+      labels:
+        app: kweb-sso
+    spec:
+      serviceAccountName: kweb-sso
+      containers:
+      - image: image-repo/kweb-sso:latest
+        name: kweb-sso
+        ports:
+        - name: http
+          containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+            scheme: HTTP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kweb-sso
+  namespace: kweb-sso-system
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: kweb-sso
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: kweb-sso
+  name: kweb-sso
+  namespace: kweb-sso-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kweb-sso
+rules: []
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kweb-sso
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kweb-sso
+subjects:
+- kind: ServiceAccount
+  name: kweb-sso
+  namespace: kweb-sso-system

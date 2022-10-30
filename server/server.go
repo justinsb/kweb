@@ -15,6 +15,7 @@ import (
 	"github.com/justinsb/kweb/components"
 	"github.com/justinsb/kweb/components/cookies"
 	"github.com/justinsb/kweb/components/github"
+	"github.com/justinsb/kweb/components/healthcheck"
 	"github.com/justinsb/kweb/components/kube/kubeclient"
 
 	// "github.com/justinsb/kweb/components/login/providers"
@@ -37,6 +38,9 @@ func New() (*Server, error) {
 
 	s := &Server{}
 
+	healthcheckComponent := healthcheck.NewHealthcheckComponent()
+	s.Components = append(s.Components, healthcheckComponent)
+
 	cookiesComponent := cookies.NewCookiesComponent()
 	s.Components = append(s.Components, cookiesComponent)
 
@@ -55,42 +59,46 @@ func New() (*Server, error) {
 	s.Components = append(s.Components, userComponent)
 
 	githubAppID := os.Getenv("GITHUB_APP_ID")
-	// TODO: Get from kube secret or file?
-	if os.Getenv("GITHUB_APP_KEY") == "" {
-		return nil, fmt.Errorf("expected GITHUB_APP_KEY to be set")
+	if githubAppID != "" {
+		// TODO: Get from kube secret or file?
+		if os.Getenv("GITHUB_APP_KEY") == "" {
+			return nil, fmt.Errorf("expected GITHUB_APP_KEY to be set")
+		}
+		rsaPrivateKey, err := parsePrivateKey(os.Getenv("GITHUB_APP_KEY"))
+		if err != nil {
+			return nil, err
+		}
+		githubApp, err := github.New(kubeClient, githubAppID, rsaPrivateKey)
+		if err != nil {
+			return nil, fmt.Errorf("error building github component: %w", err)
+		}
+		s.Components = append(s.Components, githubApp)
+
+		// TODO: Cron-type tasks
+		if err := githubApp.SyncInstallations(context.Background()); err != nil {
+			klog.Warningf("error syncing github installations: %v", err)
+		}
 	}
-	rsaPrivateKey, err := parsePrivateKey(os.Getenv("GITHUB_APP_KEY"))
-	if err != nil {
-		return nil, err
-	}
-	githubApp, err := github.New(kubeClient, githubAppID, rsaPrivateKey)
-	if err != nil {
-		return nil, fmt.Errorf("error building github component: %w", err)
-	}
-	s.Components = append(s.Components, githubApp)
 
 	clientID := os.Getenv("OAUTH2_CLIENT_ID")
-	clientSecret := os.Getenv("OAUTH2_CLIENT_SECRET")
-	// googleProvider, err := loginwithgoogle.NewGoogleProvider("google", clientID, clientSecret)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error building google provider: %w", err)
-	// }
-	githubAuth, err := loginwithgithub.NewGithubProvider(clientID, clientSecret)
-	if err != nil {
-		return nil, fmt.Errorf("error building github auth provider: %w", err)
-	}
+	if clientID != "" {
+		clientSecret := os.Getenv("OAUTH2_CLIENT_SECRET")
+		// googleProvider, err := loginwithgoogle.NewGoogleProvider("google", clientID, clientSecret)
+		// if err != nil {
+		// 	return nil, fmt.Errorf("error building google provider: %w", err)
+		// }
+		githubAuth, err := loginwithgithub.NewGithubProvider(clientID, clientSecret)
+		if err != nil {
+			return nil, fmt.Errorf("error building github auth provider: %w", err)
+		}
 
-	// TODO: Cron-type tasks
-	if err := githubApp.SyncInstallations(context.Background()); err != nil {
-		klog.Warningf("error syncing github installations: %v", err)
+		// TODO: Clean this up ... we should have a shared login component (e.g. that implements logout?)
+		loginComponent, err := loginwithgithub.NewComponent(userComponent, githubAuth)
+		if err != nil {
+			return nil, fmt.Errorf("error building login component: %w", err)
+		}
+		s.Components = append(s.Components, loginComponent)
 	}
-
-	// TODO: Clean this up ... we should have a shared login component (e.g. that implements logout?)
-	loginComponent, err := loginwithgithub.NewComponent(userComponent, githubAuth)
-	if err != nil {
-		return nil, fmt.Errorf("error building login component: %w", err)
-	}
-	s.Components = append(s.Components, loginComponent)
 
 	return s, nil
 }
