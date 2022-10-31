@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package pb;
 
-import "kube.proto";
+import "components/kube/kube.proto";
 
 option go_package = "github.com/justinsb/kweb/components/ghapp/pb";
 option (kube.group_version) = {

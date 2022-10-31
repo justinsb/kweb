@@ -18,14 +18,8 @@ go-fmt:
 
 .PHONY: protoc-generate
 protoc-generate:
-	cd dev/build/protobuf; docker buildx build --tag protobuf --load .
-	docker run -v `pwd`:/workspace protobuf protoc -I. --go_out=. --go_opt=paths=source_relative \
-		./components/kube/kube.proto
-	docker run -v `pwd`:/workspace protobuf protoc -I./components/kube -I. --descriptor_set_out=components/all.pb \
-		--go_out=. --go_opt=paths=source_relative \
-		./components/login/pb/state.proto  \
-		./components/github/pb/types.proto \
-		./components/users/pb/user.proto
+	cd dev/build/protobuf; docker buildx build --tag dev-build-protobuf --load .
+	docker run -v `pwd`:/workspace dev-build-protobuf buf generate
 
 .PHONY: protoc-fmt
 protoc-fmt:
