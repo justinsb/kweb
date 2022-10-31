@@ -37,11 +37,13 @@ type Server struct {
 }
 
 type Options struct {
+	Listen                string
 	UserNamespaceStrategy users.NamespaceMapper
 	Pages                 pages.Options
 }
 
 func (o *Options) InitDefaults(appName string) {
+	o.Listen = ":8080"
 	o.UserNamespaceStrategy = users.NewSingleNamespaceMapper(appName)
 	o.Pages.InitDefaults(appName)
 }

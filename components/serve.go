@@ -2,6 +2,7 @@ package components
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"k8s.io/klog/v2"
@@ -9,6 +10,24 @@ import (
 
 type Server struct {
 	Components []Component
+}
+
+func GetComponent[T any](s *Server, dest *T) error {
+	var matches []T
+	for _, component := range s.Components {
+		match, ok := component.(T)
+		if ok {
+			matches = append(matches, match)
+		}
+	}
+	if len(matches) == 0 {
+		return fmt.Errorf("component not found")
+	}
+	if len(matches) > 1 {
+		return fmt.Errorf("multiple matching components found")
+	}
+	*dest = matches[0]
+	return nil
 }
 
 type Response interface {
