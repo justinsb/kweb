@@ -2,7 +2,10 @@ package components
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+
+	"k8s.io/klog/v2"
 )
 
 type staticResponse struct {
@@ -62,4 +65,19 @@ func (r SimpleResponse) WriteTo(ctx context.Context, w http.ResponseWriter) {
 
 	w.WriteHeader(statusCode)
 	w.Write(r.Body)
+}
+
+type JSONResponse struct {
+	Object any
+}
+
+func (r JSONResponse) WriteTo(ctx context.Context, w http.ResponseWriter) {
+	b, err := json.Marshal(r.Object)
+	if err != nil {
+		klog.Warningf("error from json.Marshal(%T): %v", r.Object, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
 }

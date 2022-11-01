@@ -18,6 +18,17 @@ func (c *UserComponent) userFromSession(ctx context.Context) (*userapi.User, err
 	if userID == "" {
 		return nil, nil
 	}
+	user, err := c.LoadUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (c *UserComponent) LoadUser(ctx context.Context, userID string) (*userapi.User, error) {
+	if userID == "" {
+		return nil, nil
+	}
 	user := &userapi.User{}
 	key := c.buildUserKey(userID)
 	if err := c.kube.Get(ctx, key, user); err != nil {

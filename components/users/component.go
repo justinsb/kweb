@@ -10,6 +10,7 @@ import (
 	"github.com/justinsb/kweb/components"
 	"github.com/justinsb/kweb/components/kube"
 	"github.com/justinsb/kweb/components/kube/kubeclient"
+	"github.com/justinsb/kweb/components/users/pb"
 	userapi "github.com/justinsb/kweb/components/users/pb"
 	"golang.org/x/oauth2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -66,10 +67,15 @@ func (c *UserComponent) ProcessRequest(ctx context.Context, req *components.Requ
 		return nil, err
 	}
 	if user != nil {
-		ctx = context.WithValue(ctx, contextKeyUser, user)
+		ctx = WithUser(ctx, user)
 	}
 
 	return next(ctx, req)
+}
+
+func WithUser(ctx context.Context, user *pb.User) context.Context {
+	ctx = context.WithValue(ctx, contextKeyUser, user)
+	return ctx
 }
 
 func (c *UserComponent) RegisterHandlers(s *components.Server, mux *http.ServeMux) error {
@@ -92,6 +98,7 @@ func (c *UserComponent) buildUserKey(userID string) types.NamespacedName {
 		Name:      userID,
 	}
 }
+
 func (c *UserComponent) MapToUser(ctx context.Context, req *components.Request, token *oauth2.Token, info *components.AuthenticationInfo) (*userapi.User, error) {
 	// TODO: When namespace == name, should we make it cluster scoped and shard them differently?
 	// Although then we are expressing that we don't normally read all these objects consistently, when we split by namespace
@@ -100,7 +107,18 @@ func (c *UserComponent) MapToUser(ctx context.Context, req *components.Request, 
 
 	// TODO: We really need an index!
 	usersClient := kubeclient.TypedClient(c.kube, &userapi.User{})
-	allUsers, err := usersClient.List(ctx, "")
+	// A bit of a hack!
+	namespace := ""
+	switch nsStrategy := c.namespaceMapper.(type) {
+	case *SingleNamespaceMapper:
+		namespace = nsStrategy.namespace
+	case *NamespacePerUser:
+		namespace = ""
+		klog.Warningf("doing very inefficient all-namespace scan")
+	default:
+		return nil, fmt.Errorf("unknown namespace strategy %T", nsStrategy)
+	}
+	allUsers, err := usersClient.List(ctx, namespace)
 	if err != nil {
 		return nil, err
 	}
