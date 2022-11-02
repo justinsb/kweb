@@ -14,7 +14,7 @@ import (
 )
 
 // buildToken creates a new JWT token
-func (c *JWTIssuerComponent) buildToken(userID string, scopes []string, expiration time.Duration) (*oauth2.Token, error) {
+func (c *JWTIssuerComponent) buildJWTToken(userID string, scopes []string, expiration time.Duration) (*oauth2.Token, error) {
 	var claims jws.ClaimSet
 	// email address of the client_id of the application making the access token request
 	claims.Iss = c.Issuer
