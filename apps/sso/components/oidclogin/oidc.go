@@ -74,7 +74,6 @@ func (c *OIDCLoginComponent) userFromJWTToken(ctx context.Context, req *componen
 
 	var rawClaims map[string]interface{}
 	tokenInfo.token.Claims(&rawClaims)
-	klog.Infof("tokenInfo is %#v", tokenInfo.token)
 	klog.Infof("rawClaims is %#v", rawClaims)
 
 	userID := tokenInfo.token.Subject

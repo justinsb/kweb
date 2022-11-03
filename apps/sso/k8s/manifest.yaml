@@ -27,6 +27,8 @@ spec:
         envFrom:
         - secretRef:
             name: kweb-sso
+        - configMapRef:
+            name: kweb-sso
         ports:
         - name: http
           containerPort: 8080

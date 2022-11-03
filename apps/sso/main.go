@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"embed"
+	"flag"
+	"fmt"
 	"os"
 
 	"github.com/justinsb/kweb"
@@ -11,7 +13,7 @@ import (
 	"github.com/justinsb/kweb/components/keystore"
 	"github.com/justinsb/kweb/components/keystore/pb"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -19,8 +21,39 @@ import (
 var pages embed.FS
 
 func main() {
+	ctx := context.Background()
+
+	log := klog.FromContext(ctx)
+
 	opt := kweb.NewOptions("kweb-sso-system")
 	opt.Server.Pages.Base = pages
+
+	jwtIssuer := &jwtissuer.JWTIssuerComponent{}
+	flag.StringVar(&jwtIssuer.Audience, "jwtIssuer.audience", jwtIssuer.Audience, "")
+	flag.StringVar(&jwtIssuer.Issuer, "jwtIssuer.issuer", jwtIssuer.Issuer, "")
+	flag.StringVar(&jwtIssuer.CookieDomain, "jwtIssuer.cookieDomain", jwtIssuer.CookieDomain, "")
+
+	oidcLogin := oidclogin.Options{}
+	flag.StringVar(&oidcLogin.Issuer, "oidcLogin.issuer", oidcLogin.Issuer, "")
+	flag.StringVar(&oidcLogin.Audience, "oidcLogin.audience", oidcLogin.Audience, "")
+
+	var errors []error
+	flag.CommandLine.VisitAll(func(f *flag.Flag) {
+		name := f.Name
+		envVar := name
+		// envVar := strings.ReplaceAll(envVar, ".", "_")
+		// envVar = strings.ToUpper(envVar)
+		v := os.Getenv(envVar)
+		if v != "" {
+			if err := f.Value.Set(v); err != nil {
+				errors = append(errors, fmt.Errorf("error setting flag %q to env var %q value %q: %w", name, envVar, v, err))
+			}
+		}
+		log.Info("flag/env", "flag", f.Name, "env", envVar, "value", v)
+	})
+	if len(errors) != 0 {
+		klog.Fatalf("error mapping env vars to flags: %v", errors[0])
+	}
 
 	app, err := kweb.NewApp(opt)
 	if err != nil {
@@ -39,26 +72,16 @@ func main() {
 	if err != nil {
 		klog.Fatalf("error building kubernetes keystore: %v", err)
 	}
-	ctx := context.Background()
 	keys, err := keystore.KeySet(ctx, "oidc-keys", pb.KeyType_KEYTYPE_RSA)
 	if err != nil {
 		klog.Fatalf("error building kubernetes keys: %v", err)
 	}
+	jwtIssuer.Keys = keys
 
-	issuer := os.Getenv("OIDC_ISSUER")
-	audience := os.Getenv("OIDC_AUDIENCE")
-
-	app.AddComponent(&jwtissuer.JWTIssuerComponent{
-		Keys:     keys,
-		Issuer:   issuer,
-		Audience: audience,
-	})
+	app.AddComponent(jwtIssuer)
 	userComponent := app.Users()
-	oidcLogin := oidclogin.NewOIDCLoginComponent(ctx, oidclogin.Options{
-		Issuer:   issuer,
-		Audience: audience,
-	}, userComponent)
-	app.AddComponent(oidcLogin)
+	oidcLoginComponent := oidclogin.NewOIDCLoginComponent(ctx, oidcLogin, userComponent)
+	app.AddComponent(oidcLoginComponent)
 
 	app.RunFromMain()
 }
