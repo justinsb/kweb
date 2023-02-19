@@ -113,14 +113,6 @@ func (c *JWTIssuerComponent) RegisterHandlers(s *components.Server, mux *http.Se
 	return nil
 }
 
-func (c *JWTIssuerComponent) Key() string {
-	return "jwtissuer"
-}
-
-func (c *JWTIssuerComponent) ScopeValues() any {
-	return nil
-}
-
 func (c *JWTIssuerComponent) jwtIsExpiredOrInvalid(ctx context.Context, jwt string, user *userapi.User, minTTL time.Duration) string {
 	log := klog.FromContext(ctx)
 	tokens := strings.Split(jwt, ".")

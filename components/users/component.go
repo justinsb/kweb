@@ -12,6 +12,7 @@ import (
 	"github.com/justinsb/kweb/components/kube/kubeclient"
 	"github.com/justinsb/kweb/components/users/pb"
 	userapi "github.com/justinsb/kweb/components/users/pb"
+	"github.com/justinsb/kweb/templates/scopes"
 	"golang.org/x/oauth2"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -82,12 +83,12 @@ func (c *UserComponent) RegisterHandlers(s *components.Server, mux *http.ServeMu
 	return nil
 }
 
-func (c *UserComponent) Key() string {
-	return "user"
-}
-
-func (c *UserComponent) ScopeValues() any {
-	return nil
+func (c *UserComponent) AddToScope(ctx context.Context, scope *scopes.Scope) {
+	scope.Values["user"] = scopes.Value{
+		Function: func() interface{} {
+			return GetUser(ctx)
+		},
+	}
 }
 
 var contextKeyUser = &userapi.User{}

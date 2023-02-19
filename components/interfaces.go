@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/justinsb/kweb/templates/scopes"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -30,10 +31,9 @@ func GetRequest(ctx context.Context) *Request {
 
 type Component interface {
 	RegisterHandlers(server *Server, mux *http.ServeMux) error
-	// ScopeValues are the values that are exposed to templates etc
-	ScopeValues() any
-	// Key is the unique name for this component, as used in templates etc
-	Key() string
+
+	// AddToScope adds values to the template scope
+	AddToScope(ctx context.Context, scope *scopes.Scope)
 }
 
 type RequestFilterChain func(ctx context.Context, req *Request) (Response, error)

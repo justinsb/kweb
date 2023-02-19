@@ -13,12 +13,17 @@ import (
 
 	"github.com/justinsb/kweb/components"
 	"github.com/justinsb/kweb/templates"
+	"github.com/justinsb/kweb/templates/scopes"
 	"k8s.io/klog/v2"
 )
 
 type Options struct {
 	Base fs.FS
+
+	ScopeValues []ScopeFunction
 }
+
+type ScopeFunction func(ctx context.Context, scope *scopes.Scope)
 
 func (o *Options) InitDefaults(appName string) {
 	o.Base = os.DirFS("pages")
@@ -54,12 +59,10 @@ func (c *Component) RegisterHandlers(s *components.Server, mux *http.ServeMux) e
 	return nil
 }
 
-func (c *Component) Key() string {
-	return "pages"
-}
-
-func (c *Component) ScopeValues() any {
-	return nil
+func (c *Component) AddToScope(ctx context.Context, scope *scopes.Scope) {
+	for _, scopeFunc := range c.options.ScopeValues {
+		scopeFunc(ctx, scope)
+	}
 }
 
 func (c *Component) addHandlersFromDir(s *components.Server, mux *http.ServeMux, p string) error {
@@ -89,14 +92,17 @@ func (c *Component) addHandlers(s *components.Server, mux *http.ServeMux, p stri
 			Data: []byte(templateData),
 		}
 
-		endpoint := &TemplateEndpoint{server: s, template: template}
+		endpoint := &TemplateEndpoint{template: template, server: s}
 		serveOn := "/" + p
 		// Hack to we don't always have to call fs.Embed
 		if strings.HasPrefix(serveOn, "/pages/") {
 			serveOn = strings.TrimPrefix(serveOn, "/pages")
 		}
-		if strings.HasSuffix(serveOn, "/index.html") {
-			serveOn = strings.TrimSuffix(serveOn, "index.html")
+		if strings.HasSuffix(serveOn, ".html") {
+			serveOn = strings.TrimSuffix(serveOn, ".html")
+		}
+		if strings.HasSuffix(serveOn, "/index") {
+			serveOn = strings.TrimSuffix(serveOn, "index")
 		}
 
 		klog.Infof("serving %s on %s", p, serveOn)
@@ -117,13 +123,14 @@ type TemplateEndpoint struct {
 }
 
 func (e *TemplateEndpoint) ServeHTTP(ctx context.Context, req *components.Request) (components.Response, error) {
+	data := e.server.NewScope(ctx)
+
 	var b bytes.Buffer
-	if err := e.template.RenderHTML(ctx, &b, e.server, req); err != nil {
+	if err := e.template.RenderHTML(ctx, &b, req, data); err != nil {
 		return nil, err
 	}
 	response := components.SimpleResponse{
 		Body: b.Bytes(),
 	}
 	return response, nil
-
 }

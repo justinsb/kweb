@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/justinsb/kweb/components"
+	"github.com/justinsb/kweb/templates/scopes"
 )
 
 func NewCookiesComponent() components.Component {
@@ -18,12 +19,7 @@ func (c *CookiesComponent) RegisterHandlers(s *components.Server, mux *http.Serv
 	return nil
 }
 
-func (c *CookiesComponent) Key() string {
-	return "cookies"
-}
-
-func (c *CookiesComponent) ScopeValues() any {
-	return nil
+func (c *CookiesComponent) AddToScope(ctx context.Context, scope *scopes.Scope) {
 }
 
 var contextKeyResponseCookies = &responseCookies{}
