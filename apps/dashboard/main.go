@@ -17,7 +17,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-//go:embed pages
+//go:embed pages/**
 var pages embed.FS
 
 func main() {

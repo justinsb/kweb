@@ -105,6 +105,12 @@ func (c *Component) addHandlers(s *components.Server, mux *http.ServeMux, p stri
 			serveOn = strings.TrimSuffix(serveOn, "index")
 		}
 
+		name := path.Base(serveOn)
+		if strings.HasPrefix(name, "$") {
+			pathParameters := strings.Split(strings.TrimPrefix(serveOn, "/"), "/")
+			endpoint.pathParameters = pathParameters
+			serveOn = path.Dir(serveOn) + "/"
+		}
 		klog.Infof("serving %s on %s", p, serveOn)
 		mux.HandleFunc(serveOn, s.ServeHTTP(endpoint.ServeHTTP))
 	}
@@ -120,10 +126,27 @@ func (c *Component) addHandlers(s *components.Server, mux *http.ServeMux, p stri
 type TemplateEndpoint struct {
 	server   *components.Server
 	template templates.Template
+
+	pathParameters []string
 }
 
 func (e *TemplateEndpoint) ServeHTTP(ctx context.Context, req *components.Request) (components.Response, error) {
 	data := e.server.NewScope(ctx)
+
+	path := req.URL.Path
+	if len(path) > 0 && path[0] == '/' {
+		path = path[1:]
+	}
+	pathTokens := strings.Split(path, "/")
+	for i, pathParameter := range e.pathParameters {
+		if strings.HasPrefix(pathParameter, "$") {
+			key := strings.TrimPrefix(pathParameter, "$")
+			value := pathTokens[i]
+			data.Values[key] = scopes.Value{
+				Value: value,
+			}
+		}
+	}
 
 	var b bytes.Buffer
 	if err := e.template.RenderHTML(ctx, &b, req, data); err != nil {
