@@ -14,6 +14,7 @@ import (
 	"github.com/justinsb/kweb/components/keystore"
 	"github.com/justinsb/kweb/components/users"
 	userapi "github.com/justinsb/kweb/components/users/pb"
+	"github.com/justinsb/kweb/templates/scopes"
 	"golang.org/x/oauth2/jws"
 	"k8s.io/klog/v2"
 )
@@ -113,12 +114,7 @@ func (c *JWTIssuerComponent) RegisterHandlers(s *components.Server, mux *http.Se
 	return nil
 }
 
-func (c *JWTIssuerComponent) Key() string {
-	return "jwtissuer"
-}
-
-func (c *JWTIssuerComponent) ScopeValues() any {
-	return nil
+func (c *JWTIssuerComponent) AddToScope(ctx context.Context, scope *scopes.Scope) {
 }
 
 func (c *JWTIssuerComponent) jwtIsExpiredOrInvalid(ctx context.Context, jwt string, user *userapi.User, minTTL time.Duration) string {

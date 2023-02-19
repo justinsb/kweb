@@ -12,6 +12,7 @@ import (
 	"github.com/justinsb/kweb/components"
 	"github.com/justinsb/kweb/components/cookies"
 	"github.com/justinsb/kweb/debug"
+	"github.com/justinsb/kweb/templates/scopes"
 	"k8s.io/klog/v2"
 )
 
@@ -129,10 +130,5 @@ func (c *SessionComponent) RegisterHandlers(s *components.Server, mux *http.Serv
 	return nil
 }
 
-func (c *SessionComponent) Key() string {
-	return "session"
-}
-
-func (c *SessionComponent) ScopeValues() any {
-	return nil
+func (c *SessionComponent) AddToScope(ctx context.Context, scope *scopes.Scope) {
 }

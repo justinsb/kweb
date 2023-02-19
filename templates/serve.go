@@ -8,7 +8,6 @@ import (
 	"io"
 
 	"github.com/justinsb/kweb/components"
-	"github.com/justinsb/kweb/components/users"
 	"github.com/justinsb/kweb/templates/scopes"
 	"golang.org/x/net/html"
 )
@@ -17,7 +16,7 @@ type Template struct {
 	Data []byte
 }
 
-func (s *Template) RenderHTML(ctx context.Context, w io.Writer, server *components.Server, req *components.Request) error {
+func (s *Template) RenderHTML(ctx context.Context, w io.Writer, req *components.Request, data *scopes.Scope) error {
 	page, err := html.Parse(bytes.NewReader([]byte(defaultPage)))
 	if err != nil {
 		return fmt.Errorf("failed to parse page: %w", err)
@@ -36,29 +35,6 @@ func (s *Template) RenderHTML(ctx context.Context, w io.Writer, server *componen
 		slot.Parent.InsertBefore(node, slot)
 	}
 	slot.Parent.RemoveChild(slot)
-
-	data := scopes.NewScope()
-
-	// TODO: Move to component
-	data.Values["user"] = scopes.Value{
-		Function: func() interface{} {
-			return users.GetUser(ctx)
-		},
-	}
-
-	data.Values["components"] = scopes.Value{
-		Function: func() interface{} {
-			m := make(map[string]any)
-			for _, component := range server.Components {
-				v := component.ScopeValues()
-				if v != nil {
-					key := component.Key()
-					m[key] = v
-				}
-			}
-			return m
-		},
-	}
 
 	var render Render
 	bw := bufio.NewWriter(w)

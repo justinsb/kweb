@@ -6,6 +6,7 @@ import (
 
 	"github.com/justinsb/kweb/components"
 	"github.com/justinsb/kweb/components/users"
+	"github.com/justinsb/kweb/templates/scopes"
 )
 
 type OIDCLoginComponent struct {
@@ -40,10 +41,5 @@ func (c *OIDCLoginComponent) RegisterHandlers(s *components.Server, mux *http.Se
 	return nil
 }
 
-func (c *OIDCLoginComponent) Key() string {
-	return "jwtissuer"
-}
-
-func (c *OIDCLoginComponent) ScopeValues() any {
-	return nil
+func (c *OIDCLoginComponent) AddToScope(ctx context.Context, scope *scopes.Scope) {
 }

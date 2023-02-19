@@ -10,6 +10,7 @@ import (
 	"github.com/justinsb/kweb/templates/mustache/fieldpath"
 	"github.com/justinsb/kweb/templates/scopes"
 	"golang.org/x/net/html"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog/v2"
 )
 
@@ -37,23 +38,23 @@ func (r *Render) renderTextNode(node *html.Node) error {
 	return escape(r.w, text)
 }
 
-func (r *Render) expandAttributeValue(attr html.Attribute) (string, error) {
+func (r *Render) renderAttributeValue(attr *html.Attribute) error {
 	text := attr.Val
 
 	if strings.Contains(text, "{{") {
 		el, err := mustache.ParseExpressionList(text)
 		if err != nil {
-			return "", err
+			return err
 		}
 		expanded, err := el.Eval(r.data)
 		if err != nil {
-			return "", err
+			return err
 		}
 		text = expanded
 		klog.Infof("found mustache: %v => %q", el.DebugString(), text)
 	}
 
-	return text, nil
+	return escape(r.w, text)
 }
 
 var directiveAttribute = map[string]bool{
@@ -82,7 +83,7 @@ func (r *Render) renderElementNode(node *html.Node) error {
 				ngForVariable = tokens[1]
 				ngForList = tokens[3]
 			} else {
-				return fmt.Errorf("cannot parse *ngFor=%q", attr.Key)
+				return fmt.Errorf("cannot parse *ngFor=%q", attr.Val)
 			}
 
 		case "*ngif":
@@ -120,11 +121,8 @@ func (r *Render) renderElementNode(node *html.Node) error {
 		} else {
 			val = value.Value
 		}
-		list, ok := val.([]interface{})
-		if !ok {
-			return fmt.Errorf("value %q was not list, was %T", ngForList, val)
-		}
-		for _, item := range list {
+
+		forEach := func(item interface{}) error {
 			key := ngForVariable
 			oldValue := r.data.Values[key]
 			r.data.Values[key] = scopes.Value{
@@ -132,11 +130,30 @@ func (r *Render) renderElementNode(node *html.Node) error {
 			}
 
 			if err := r.renderElementNodeInner(node); err != nil {
-				return nil
+				return err
 			}
 			r.data.Values[key] = oldValue
+			return nil
 		}
-		return nil
+
+		switch list := val.(type) {
+		case []interface{}:
+			for _, item := range list {
+				if err := forEach(item); err != nil {
+					return err
+				}
+			}
+			return nil
+		case []unstructured.Unstructured:
+			for _, item := range list {
+				if err := forEach(item); err != nil {
+					return err
+				}
+			}
+			return nil
+		default:
+			return fmt.Errorf("value %q was not list, was %T", ngForList, val)
+		}
 	} else {
 		return r.renderElementNodeInner(node)
 	}
@@ -255,11 +272,7 @@ func (r *Render) renderElementNodeInner(n *html.Node) error {
 		if _, err := w.WriteString(`="`); err != nil {
 			return err
 		}
-		val, err := r.expandAttributeValue(a)
-		if err != nil {
-			return err
-		}
-		if err := escape(w, val); err != nil {
+		if err := r.renderAttributeValue(&a); err != nil {
 			return err
 		}
 		if err := w.WriteByte('"'); err != nil {

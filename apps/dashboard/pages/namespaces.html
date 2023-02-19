@@ -1,0 +1,9 @@
+<body>
+  <h1>Welcome!</h1>
+
+  <ul>
+    <li *ngFor="let ns of namespaces">
+      <a href="/namespaces/{{ns.metadata.name}}/">{{ns.metadata.name}}</a>
+    </li>
+  </ul>
+</body>

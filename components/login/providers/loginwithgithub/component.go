@@ -1,10 +1,12 @@
 package loginwithgithub
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/justinsb/kweb/components"
 	"github.com/justinsb/kweb/components/login"
+	"github.com/justinsb/kweb/templates/scopes"
 	// "github.com/justinsb/kweb/components/login/providers"
 )
 
@@ -29,14 +31,10 @@ func (c *Component) RegisterHandlers(s *components.Server, mux *http.ServeMux) e
 	return nil
 }
 
-func (c *Component) Key() string {
-	return "login"
-}
-
-func (c *Component) ScopeValues() any {
+func (c *Component) AddToScope(ctx context.Context, scope *scopes.Scope) {
 	m := map[string]any{
 		"logoutURL": "/_login/logout",
 		"loginURL":  "/_login/oauth2/github",
 	}
-	return m
+	scope.Values["login"] = scopes.Value{Value: m}
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/justinsb/kweb/templates/scopes"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog/v2"
 )
 
@@ -74,6 +75,13 @@ func (e *IndexExpression) Eval(o interface{}) (interface{}, bool) {
 	case *scopes.Scope:
 		// TODO: Only at top level?
 		return o.Eval(e.Key)
+
+	case unstructured.Unstructured:
+		v, ok := o.Object[e.Key]
+		if !ok {
+			return nil, false
+		}
+		return v, true
 
 	case map[string]interface{}:
 		v, ok := o[e.Key]
