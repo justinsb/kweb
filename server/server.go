@@ -105,7 +105,7 @@ func New(opt Options) (*Server, error) {
 	if clientID != "" {
 		clientSecret := os.Getenv("OAUTH2_CLIENT_SECRET")
 
-		isGoogle := false
+		isGoogle := true
 		if isGoogle {
 			googleProvider, err := loginwithgoogle.NewGoogleProvider("google", clientID, clientSecret)
 			if err != nil {
