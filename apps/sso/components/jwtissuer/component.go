@@ -34,6 +34,12 @@ var _ components.RequestFilter = &JWTIssuerComponent{}
 func (c *JWTIssuerComponent) ProcessRequest(ctx context.Context, req *components.Request, next components.RequestFilterChain) (components.Response, error) {
 	log := klog.FromContext(ctx)
 
+	// Fast-path CORS requests
+	// TODO: Handle CORS properly
+	if req.Method == "OPTIONS" {
+		return next(ctx, req)
+	}
+
 	jwtCookie, err := req.Cookie(CookieNameJWT)
 	if err != nil && err != http.ErrNoCookie {
 		return nil, fmt.Errorf("error reading cookie: %w", err)
@@ -62,46 +68,23 @@ func (c *JWTIssuerComponent) ProcessRequest(ctx context.Context, req *components
 	}
 
 	if setJWT {
-		setCookie := http.Cookie{
-			Name:     CookieNameJWT,
-			HttpOnly: true,
-			Secure:   true,
-			Path:     "/", // Otherwise cookie is filtered
+		if err := c.setCookie(ctx, req, user); err != nil {
+			return nil, err
 		}
+	}
 
-		if user != nil {
-			scopes := []string{"sso"}
-			jwtExpiration := time.Hour // while we're developing
-			// The istio jwt rule is not very easy to work with,
-			// when the cookie has expired it blocks everything,
-			// and it's surprisingly tricky to allowlist just one app
-			cookieExpiration := jwtExpiration - 5*time.Minute
-
-			setCookie.Expires = time.Now().Add(cookieExpiration)
-
-			token, err := c.buildJWTToken(user.GetMetadata().GetName(), scopes, jwtExpiration)
-			if err != nil {
-				return nil, fmt.Errorf("error building JWT token: %w", err)
-			}
-			setCookie.Value = token.TokenType + " " + token.AccessToken
-		} else {
-			setCookie.Expires = time.Unix(0, 0)
+	redirect := req.Request.FormValue("redirect")
+	if redirect != "" {
+		req.Session.SetString("redirect", redirect)
+	}
+	log.Info("user . redirect", "user", user, "redirect", redirect)
+	if user != nil {
+		if redirect == "" {
+			redirect = req.Session.GetString("redirect")
 		}
-
-		if c.CookieDomain != "" {
-			setCookie.Domain = c.CookieDomain
+		if redirect != "" {
+			return components.RedirectResponse(redirect), nil
 		}
-
-		if !req.BrowserUsingHTTPS() {
-			if req.IsLocalhost() {
-				klog.Warningf("setting cookie to _not_ be secure, because running on localhost")
-				setCookie.Secure = false
-			} else {
-				klog.Warningf("session invoked but running without TLS (and not on localhost); likely won't work")
-			}
-		}
-
-		cookies.SetCookie(ctx, setCookie)
 	}
 
 	return next(ctx, req)
@@ -154,4 +137,48 @@ func (c *JWTIssuerComponent) jwtIsExpiredOrInvalid(ctx context.Context, jwt stri
 		return "expiring"
 	}
 	return ""
+}
+
+func (c *JWTIssuerComponent) setCookie(ctx context.Context, req *components.Request, user *userapi.User) error {
+	setCookie := http.Cookie{
+		Name:     CookieNameJWT,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/", // Otherwise cookie is filtered
+	}
+
+	if user != nil {
+		scopes := []string{"sso"}
+		jwtExpiration := time.Hour // while we're developing
+		// The istio jwt rule is not very easy to work with,
+		// when the cookie has expired it blocks everything,
+		// and it's surprisingly tricky to allowlist just one app
+		cookieExpiration := jwtExpiration - 5*time.Minute
+
+		setCookie.Expires = time.Now().Add(cookieExpiration)
+
+		token, err := c.buildJWTToken(user.GetMetadata().GetName(), scopes, jwtExpiration)
+		if err != nil {
+			return fmt.Errorf("error building JWT token: %w", err)
+		}
+		setCookie.Value = token.TokenType + " " + token.AccessToken
+	} else {
+		setCookie.Expires = time.Unix(0, 0)
+	}
+
+	if c.CookieDomain != "" {
+		setCookie.Domain = c.CookieDomain
+	}
+
+	if !req.BrowserUsingHTTPS() {
+		if req.IsLocalhost() {
+			klog.Warningf("setting cookie to _not_ be secure, because running on localhost")
+			setCookie.Secure = false
+		} else {
+			klog.Warningf("session invoked but running without TLS (and not on localhost); likely won't work")
+		}
+	}
+
+	cookies.SetCookie(ctx, setCookie)
+	return nil
 }

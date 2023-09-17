@@ -154,9 +154,9 @@ func (c *UserComponent) MapToUser(ctx context.Context, req *components.Request, 
 	kube.InitObject(user, userKey)
 	user.Spec = userSpec
 
-	if err := c.ensureNamespace(ctx, user.Metadata.Namespace); err != nil {
-		return nil, err
-	}
+	// if err := c.ensureNamespace(ctx, user.Metadata.Namespace); err != nil {
+	// 	return nil, err
+	// }
 
 	// TODO: It is possible that we create two users simultaneously here
 	// We likely need to support merging users (which we probably need to do anyway if we support login with multiple accounts)

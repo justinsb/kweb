@@ -10,8 +10,10 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/justinsb/kweb/components"
+	"github.com/justinsb/kweb/components/cookies"
 	"github.com/justinsb/kweb/components/login/pb"
 	"github.com/justinsb/kweb/components/users"
 	userapi "github.com/justinsb/kweb/components/users/pb"
@@ -19,6 +21,8 @@ import (
 	"golang.org/x/oauth2"
 	"k8s.io/klog/v2"
 )
+
+const CookieNameJWT = "auth-token"
 
 // const stateCookieName = "_oauth2_state"
 const sessionOauth2State = "_oauth2_state"
@@ -54,6 +58,22 @@ func (p *Component) OAuthStart(ctx context.Context, req *components.Request) (co
 
 func (p *Component) Logout(ctx context.Context, req *components.Request) (components.Response, error) {
 	users.Logout(ctx)
+
+	for _, cookie := range req.Cookies() {
+		if cookie.Name == CookieNameJWT {
+			clearCookie := http.Cookie{
+				Name:     cookie.Name,
+				HttpOnly: true,
+				Secure:   true,
+				Path:     "/",
+				Value:    "",
+				Expires:  time.Unix(0, 0),
+				Domain:   "kopio.us",
+			}
+
+			cookies.SetCookie(ctx, clearCookie)
+		}
+	}
 
 	return components.RedirectResponse("/"), nil
 }

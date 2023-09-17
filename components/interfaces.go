@@ -8,7 +8,7 @@ import (
 )
 
 type Request struct {
-	Session
+	Session Session
 
 	*http.Request
 }
