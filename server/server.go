@@ -157,6 +157,12 @@ func (s *Server) ListenAndServe(ctx context.Context, listen string, listening ch
 		MaxHeaderBytes: 1 << 20,
 	}
 
+	tlsConfig, err := s.buildTLSConfig(ctx)
+	if err != nil {
+		return err
+	}
+	httpServer.TLSConfig = tlsConfig
+
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -180,12 +186,24 @@ func (s *Server) ListenAndServe(ctx context.Context, listen string, listening ch
 	if listening != nil {
 		listening <- ln.Addr()
 	}
-	if err := httpServer.Serve(ln); err != nil {
-		if ctxWithCancel.Err() != nil {
-			// Shutdown through context
-			return nil
+	if httpServer.TLSConfig != nil {
+		klog.Infof("starting https server on %v", ln.Addr())
+		if err := httpServer.ServeTLS(ln, "", ""); err != nil {
+			if ctxWithCancel.Err() != nil {
+				// Shutdown through context
+				return nil
+			}
+			return fmt.Errorf("error running https server: %w", err)
 		}
-		return fmt.Errorf("error running http server: %w", err)
+	} else {
+		klog.Infof("starting http server on %v", ln.Addr())
+		if err := httpServer.Serve(ln); err != nil {
+			if ctxWithCancel.Err() != nil {
+				// Shutdown through context
+				return nil
+			}
+			return fmt.Errorf("error running http server: %w", err)
+		}
 	}
 
 	return nil
