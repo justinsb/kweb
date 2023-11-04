@@ -27,6 +27,7 @@ func main() {
 
 	opt := kweb.NewOptions("kweb-sso-system")
 	opt.Server.Pages.Base = pages
+	opt.Server.UseSPIFFE = true
 
 	jwtIssuer := &jwtissuer.JWTIssuerComponent{}
 	flag.StringVar(&jwtIssuer.Audience, "jwtIssuer.audience", jwtIssuer.Audience, "")

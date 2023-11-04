@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -40,10 +41,13 @@ type Options struct {
 	Listen                string
 	UserNamespaceStrategy users.NamespaceMapper
 	Pages                 pages.Options
+
+	TLSConfig *tls.Config
+	UseSPIFFE bool
 }
 
 func (o *Options) InitDefaults(appName string) {
-	o.Listen = ":8080"
+	o.Listen = ":8443"
 	o.UserNamespaceStrategy = users.NewSingleNamespaceMapper(appName)
 	o.Pages.InitDefaults(appName)
 }
@@ -136,7 +140,7 @@ func New(opt Options) (*Server, error) {
 	return s, nil
 }
 
-func (s *Server) ListenAndServe(ctx context.Context, listen string, listening chan<- net.Addr) error {
+func (s *Server) ListenAndServe(ctx context.Context, listen string, tlsConfig *tls.Config, listening chan<- net.Addr) error {
 	defer func() {
 		if listening != nil {
 			close(listening)
@@ -155,11 +159,6 @@ func (s *Server) ListenAndServe(ctx context.Context, listen string, listening ch
 		ReadTimeout:    60 * time.Second,
 		WriteTimeout:   30 * time.Second,
 		MaxHeaderBytes: 1 << 20,
-	}
-
-	tlsConfig, err := s.buildTLSConfig(ctx)
-	if err != nil {
-		return err
 	}
 	httpServer.TLSConfig = tlsConfig
 
