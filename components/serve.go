@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/justinsb/kweb/templates/scopes"
 	"k8s.io/klog/v2"
 )
 
@@ -83,4 +84,14 @@ func (s *Server) ServeHTTP(fn func(ctx context.Context, req *Request) (Response,
 
 		response.WriteTo(ctx, w)
 	}
+}
+
+func (s *Server) NewScope(ctx context.Context) *scopes.Scope {
+	data := scopes.NewScope()
+
+	for _, component := range s.Components {
+		component.AddToScope(ctx, data)
+	}
+
+	return data
 }

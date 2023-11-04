@@ -7,6 +7,7 @@ import (
 
 	"github.com/justinsb/kweb/components"
 	"github.com/justinsb/kweb/components/kube/kubeclient"
+	"github.com/justinsb/kweb/templates/scopes"
 )
 
 type Component struct {
@@ -30,18 +31,13 @@ func (c *Component) RegisterHandlers(s *components.Server, mux *http.ServeMux) e
 	return nil
 }
 
-func (c *Component) Key() string {
-	return "github"
-}
-
-func (c *Component) ScopeValues() any {
-	return nil
-}
-
 var _ components.RequestFilter = &Component{}
 
 func (c *Component) ProcessRequest(ctx context.Context, req *components.Request, next components.RequestFilterChain) (components.Response, error) {
 	ctx = context.WithValue(ctx, contextKeyRequest, &requestInfo{component: c})
 
 	return next(ctx, req)
+}
+
+func (c *Component) AddToScope(ctx context.Context, scope *scopes.Scope) {
 }
