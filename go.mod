@@ -1,6 +1,6 @@
 module github.com/justinsb/kweb
 
-go 1.18
+go 1.21.3
 
 require (
 	github.com/coreos/go-oidc/v3 v3.4.0
