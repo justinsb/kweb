@@ -98,6 +98,7 @@ func (a *App) listenAndServe(ctx context.Context) error {
 func (a *App) AddComponent(component components.Component) {
 	a.server.Components = append(a.server.Components, component)
 }
+
 func (a *App) Users() *users.UserComponent {
 	var userComponent *users.UserComponent
 	if err := components.GetComponent(&a.server.Server, &userComponent); err != nil {

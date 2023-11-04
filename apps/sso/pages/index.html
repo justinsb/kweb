@@ -5,7 +5,7 @@
     <span *ngIf="user">user is set to {{user.spec.email}}</span>
   </div>
   <div>
-    <span *ngIf="user"><a href="{{components.login.logoutURL}}">Logout</a></span>
-    <span *ngIf="!user"><a href="{{components.login.loginURL}}">Login</a></span>
+    <span *ngIf="user"><a href="{{login.logoutURL}}">Logout</a></span>
+    <span *ngIf="!user"><a href="{{login.loginURL}}">Login</a></span>
   </div>
 </body>
