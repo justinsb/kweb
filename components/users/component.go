@@ -10,7 +10,6 @@ import (
 	"github.com/justinsb/kweb/components"
 	"github.com/justinsb/kweb/components/kube"
 	"github.com/justinsb/kweb/components/kube/kubeclient"
-	"github.com/justinsb/kweb/components/users/pb"
 	userapi "github.com/justinsb/kweb/components/users/pb"
 	"github.com/justinsb/kweb/templates/scopes"
 	"golang.org/x/oauth2"
@@ -67,16 +66,9 @@ func (c *UserComponent) ProcessRequest(ctx context.Context, req *components.Requ
 	if err != nil {
 		return nil, err
 	}
-	if user != nil {
-		ctx = WithUser(ctx, user)
-	}
+	ctx = context.WithValue(ctx, contextKeyUser, &scopeInfo{currentUser: user})
 
 	return next(ctx, req)
-}
-
-func WithUser(ctx context.Context, user *pb.User) context.Context {
-	ctx = context.WithValue(ctx, contextKeyUser, user)
-	return ctx
 }
 
 func (c *UserComponent) RegisterHandlers(s *components.Server, mux *http.ServeMux) error {
@@ -91,14 +83,31 @@ func (c *UserComponent) AddToScope(ctx context.Context, scope *scopes.Scope) {
 	}
 }
 
-var contextKeyUser = &userapi.User{}
+var contextKeyUser = &scopeInfo{}
+
+type scopeInfo struct {
+	currentUser *userapi.User
+}
+
+func SetUser(ctx context.Context, user *userapi.User) {
+	info := ctx.Value(contextKeyUser)
+	if info == nil {
+		klog.Fatalf("user component not configured (key not in context)")
+	}
+	info.(*scopeInfo).currentUser = user
+
+	req := components.GetRequest(ctx)
+	if user != nil {
+		userID := user.Metadata.Name
+		req.Session.SetString(sessionKeyUserID, userID)
+	} else {
+		req.Session.Clear(sessionKeyUserID)
+	}
+}
 
 func GetUser(ctx context.Context) *userapi.User {
-	v := ctx.Value(contextKeyUser)
-	if v == nil {
-		return nil
-	}
-	return v.(*userapi.User)
+	info := ctx.Value(contextKeyUser).(*scopeInfo)
+	return info.currentUser
 }
 
 func (c *UserComponent) buildUserKey(userID string) types.NamespacedName {
@@ -163,9 +172,9 @@ func (c *UserComponent) MapToUser(ctx context.Context, req *components.Request, 
 	kube.InitObject(user, userKey)
 	user.Spec = userSpec
 
-	if err := c.ensureNamespace(ctx, user.Metadata.Namespace); err != nil {
-		return nil, err
-	}
+	// if err := c.ensureNamespace(ctx, user.Metadata.Namespace); err != nil {
+	// 	return nil, err
+	// }
 
 	// TODO: It is possible that we create two users simultaneously here
 	// We likely need to support merging users (which we probably need to do anyway if we support login with multiple accounts)

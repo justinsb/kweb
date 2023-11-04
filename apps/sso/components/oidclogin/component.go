@@ -30,9 +30,7 @@ func (c *OIDCLoginComponent) ProcessRequest(ctx context.Context, req *components
 	if err != nil {
 		return nil, err
 	}
-	if userInfo != nil {
-		ctx = users.WithUser(ctx, userInfo)
-	}
+	users.SetUser(ctx, userInfo)
 
 	return next(ctx, req)
 }

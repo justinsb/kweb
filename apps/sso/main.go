@@ -79,10 +79,11 @@ func main() {
 	}
 	jwtIssuer.Keys = keys
 
-	app.AddComponent(jwtIssuer)
 	userComponent := app.Users()
 	oidcLoginComponent := oidclogin.NewOIDCLoginComponent(ctx, oidcLogin, userComponent)
 	app.AddComponent(oidcLoginComponent)
+
+	app.AddComponent(jwtIssuer)
 
 	app.RunFromMain()
 }

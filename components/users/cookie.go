@@ -6,7 +6,6 @@ import (
 
 	"github.com/justinsb/kweb/components"
 	userapi "github.com/justinsb/kweb/components/users/pb"
-	"golang.org/x/oauth2"
 )
 
 const sessionKeyUserID = "userid"
@@ -40,17 +39,5 @@ func (c *UserComponent) LoadUser(ctx context.Context, userID string) (*userapi.U
 }
 
 func Logout(ctx context.Context) {
-	request := components.GetRequest(ctx)
-
-	request.Session.Clear(sessionKeyUserID)
-}
-
-func SetCurrentUser(ctx context.Context, token *oauth2.Token, providerKey string, user *userapi.User) error {
-	// TODO: Where should we store the token?
-
-	req := components.GetRequest(ctx)
-	userID := user.Metadata.Name
-	req.Session.SetString(sessionKeyUserID, userID)
-
-	return nil
+	SetUser(ctx, nil)
 }

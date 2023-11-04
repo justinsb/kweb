@@ -18,6 +18,8 @@ import (
 	"k8s.io/klog/v2"
 )
 
+const CookieNameJWT = "auth-token"
+
 // const stateCookieName = "_oauth2_state"
 const sessionOauth2State = "_oauth2_state"
 
@@ -128,9 +130,7 @@ func (p *Component) OAuthCallback(ctx context.Context, req *components.Request) 
 
 	klog.Infof("authentication complete %v", info)
 
-	users.SetCurrentUser(ctx, token, info.Provider.ProviderID(), userInfo)
-
-	// ctx = user.WithUser(ctx, userInfo)
+	users.SetUser(ctx, userInfo)
 
 	return components.RedirectResponse(redirect), nil
 }
