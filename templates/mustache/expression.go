@@ -6,6 +6,7 @@ import (
 
 	"github.com/justinsb/kweb/templates/mustache/fieldpath"
 	"github.com/justinsb/kweb/templates/scopes"
+	"k8s.io/klog/v2"
 )
 
 type ExpressionList struct {
@@ -24,6 +25,14 @@ func (l *ExpressionList) Eval(scope *scopes.Scope) (string, error) {
 	return strings.Join(values, ""), nil
 }
 
+func (l *ExpressionList) DebugString() string {
+	var values []string
+	for _, e := range l.Expressions {
+		values = append(values, e.DebugString())
+	}
+	return strings.Join(values, ",")
+}
+
 type LiteralExpression struct {
 	Literal string
 }
@@ -32,8 +41,16 @@ func (l *LiteralExpression) Eval(scope *scopes.Scope) (string, error) {
 	return l.Literal, nil
 }
 
+func (l *LiteralExpression) DebugString() string {
+	return fmt.Sprintf("%q", l.Literal)
+}
+
 type MustacheExpression struct {
 	Expression string
+}
+
+func (l *MustacheExpression) DebugString() string {
+	return l.Expression
 }
 
 func (l *MustacheExpression) Eval(scope *scopes.Scope) (string, error) {
@@ -49,6 +66,7 @@ func (l *MustacheExpression) Eval(scope *scopes.Scope) (string, error) {
 		return "", fmt.Errorf("error parsing expression %q: %w", l.Expression, err)
 	}
 
+	klog.Infof("parsed expression %q => %q", l.Expression, exprTree.String())
 	v, ok := exprTree.Eval(scope)
 	if !ok {
 		return "", nil
@@ -58,4 +76,5 @@ func (l *MustacheExpression) Eval(scope *scopes.Scope) (string, error) {
 
 type Expression interface {
 	Eval(scope *scopes.Scope) (string, error)
+	DebugString() string
 }

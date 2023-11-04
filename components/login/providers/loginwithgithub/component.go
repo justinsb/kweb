@@ -26,7 +26,17 @@ func (c *Component) RegisterHandlers(s *components.Server, mux *http.ServeMux) e
 	mux.HandleFunc("/_login/oauth2/github", s.ServeHTTP(c.common.OAuthStart))
 	mux.HandleFunc("/_login/oauth2-callback/github", s.ServeHTTP(c.common.OAuthCallback))
 
-	// Temporary endpoint until we can do more (e.g. UI templating)
-	mux.HandleFunc("/info", s.ServeHTTP(c.common.DebugInfo))
 	return nil
+}
+
+func (c *Component) Key() string {
+	return "login"
+}
+
+func (c *Component) ScopeValues() any {
+	m := map[string]any{
+		"logoutURL": "/_login/logout",
+		"loginURL":  "/_login/oauth2/github",
+	}
+	return m
 }

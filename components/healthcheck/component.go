@@ -19,6 +19,14 @@ func (c *HealthcheckComponent) RegisterHandlers(s *components.Server, mux *http.
 	return nil
 }
 
+func (c *HealthcheckComponent) Key() string {
+	return "healthcheck"
+}
+
+func (c *HealthcheckComponent) ScopeValues() any {
+	return nil
+}
+
 func (p *HealthcheckComponent) Healthz(ctx context.Context, req *components.Request) (components.Response, error) {
 	html := "ok"
 	response := components.SimpleResponse{

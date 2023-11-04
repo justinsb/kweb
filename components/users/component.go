@@ -82,6 +82,14 @@ func (c *UserComponent) RegisterHandlers(s *components.Server, mux *http.ServeMu
 	return nil
 }
 
+func (c *UserComponent) Key() string {
+	return "user"
+}
+
+func (c *UserComponent) ScopeValues() any {
+	return nil
+}
+
 var contextKeyUser = &userapi.User{}
 
 func GetUser(ctx context.Context) *userapi.User {

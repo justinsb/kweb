@@ -30,12 +30,30 @@ func (r *Render) renderTextNode(node *html.Node) error {
 		if err != nil {
 			return err
 		}
-		klog.Infof("found mustache: %#v", el)
 		text = expanded
+		klog.Infof("found mustache: %v => %q", el.DebugString(), text)
 	}
 
 	return escape(r.w, text)
+}
 
+func (r *Render) expandAttributeValue(attr html.Attribute) (string, error) {
+	text := attr.Val
+
+	if strings.Contains(text, "{{") {
+		el, err := mustache.ParseExpressionList(text)
+		if err != nil {
+			return "", err
+		}
+		expanded, err := el.Eval(r.data)
+		if err != nil {
+			return "", err
+		}
+		text = expanded
+		klog.Infof("found mustache: %v => %q", el.DebugString(), text)
+	}
+
+	return text, nil
 }
 
 var directiveAttribute = map[string]bool{
@@ -237,7 +255,11 @@ func (r *Render) renderElementNodeInner(n *html.Node) error {
 		if _, err := w.WriteString(`="`); err != nil {
 			return err
 		}
-		if err := escape(w, a.Val); err != nil {
+		val, err := r.expandAttributeValue(a)
+		if err != nil {
+			return err
+		}
+		if err := escape(w, val); err != nil {
 			return err
 		}
 		if err := w.WriteByte('"'); err != nil {

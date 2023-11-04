@@ -1,7 +1,6 @@
 package login
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -15,7 +14,6 @@ import (
 	"github.com/justinsb/kweb/components/login/pb"
 	"github.com/justinsb/kweb/components/users"
 	userapi "github.com/justinsb/kweb/components/users/pb"
-	"github.com/justinsb/kweb/templates"
 	"golang.org/x/oauth2"
 	"k8s.io/klog/v2"
 )
@@ -136,40 +134,3 @@ func (p *Component) OAuthCallback(ctx context.Context, req *components.Request) 
 
 	return components.RedirectResponse(redirect), nil
 }
-
-// DebugInfo is a simple endpoint for debugging, while we can't do much more
-// TODO: Remove me!
-func (p *Component) DebugInfo(ctx context.Context, req *components.Request) (components.Response, error) {
-	// user := users.GetUser(ctx)
-	// var html string
-	// if user == nil {
-	// 	html = "not logged in"
-	// } else {
-	// 	html = "logged in as " + user.UserInfo.GetSpec().GetEmail()
-	// }
-
-	template := templates.Template{
-		Data: []byte(debugTemplate),
-	}
-	var b bytes.Buffer
-	if err := template.RenderHTML(ctx, &b, req); err != nil {
-		return nil, err
-	}
-	response := components.SimpleResponse{
-		Body: b.Bytes(),
-	}
-	return response, nil
-}
-
-const debugTemplate = `
-<div *ngIf="user">
-<span >Hello {{ user.spec.email }}</span>
-<span><a href="/_login/logout">Logout</a></span>
-</div>
-
-<div *ngIf="!user">
-You are not currently logged in; click to log in
-<span><a href="/_login/oauth2/github">Login</a></span>
-</div>
-
-`

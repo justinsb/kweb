@@ -18,6 +18,14 @@ func (c *CookiesComponent) RegisterHandlers(s *components.Server, mux *http.Serv
 	return nil
 }
 
+func (c *CookiesComponent) Key() string {
+	return "cookies"
+}
+
+func (c *CookiesComponent) ScopeValues() any {
+	return nil
+}
+
 var contextKeyResponseCookies = &responseCookies{}
 
 // getResponseCookies returns the ResponseCookies object used to add cookies to the response.
