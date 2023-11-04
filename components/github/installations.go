@@ -52,7 +52,8 @@ func (c *Component) SyncInstallations(ctx context.Context) error {
 			}
 			klog.Infof("installation is %v", prototext.Format(kubeInstallation))
 
-			if err := c.kube.Apply(ctx, kubeInstallation, kubeclient.ApplyOptions{FieldManager: "kweb-github"}); err != nil {
+			var applied kube.Object
+			if err := c.kube.Apply(ctx, kubeInstallation, kubeclient.ApplyOptions{FieldManager: "kweb-github"}, applied); err != nil {
 				return fmt.Errorf("error applying installation object: %w", err)
 			}
 		}
