@@ -128,3 +128,11 @@ func (c *SessionComponent) generateSessionID() (string, error) {
 func (c *SessionComponent) RegisterHandlers(s *components.Server, mux *http.ServeMux) error {
 	return nil
 }
+
+func (c *SessionComponent) Key() string {
+	return "session"
+}
+
+func (c *SessionComponent) ScopeValues() any {
+	return nil
+}

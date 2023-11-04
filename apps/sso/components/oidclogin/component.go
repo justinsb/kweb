@@ -39,3 +39,11 @@ func (c *OIDCLoginComponent) ProcessRequest(ctx context.Context, req *components
 func (c *OIDCLoginComponent) RegisterHandlers(s *components.Server, mux *http.ServeMux) error {
 	return nil
 }
+
+func (c *OIDCLoginComponent) Key() string {
+	return "jwtissuer"
+}
+
+func (c *OIDCLoginComponent) ScopeValues() any {
+	return nil
+}

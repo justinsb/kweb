@@ -104,9 +104,10 @@ func New(opt Options) (*Server, error) {
 	clientID := os.Getenv("OAUTH2_CLIENT_ID")
 	if clientID != "" {
 		clientSecret := os.Getenv("OAUTH2_CLIENT_SECRET")
+		authProvider := os.Getenv("OAUTH2_PROVIDER")
 
-		isGoogle := false
-		if isGoogle {
+		switch authProvider {
+		case "google":
 			googleProvider, err := loginwithgoogle.NewGoogleProvider("google", clientID, clientSecret)
 			if err != nil {
 				return nil, fmt.Errorf("error building google provider: %w", err)
@@ -118,7 +119,8 @@ func New(opt Options) (*Server, error) {
 				return nil, fmt.Errorf("error building login component: %w", err)
 			}
 			s.Components = append(s.Components, loginComponent)
-		} else {
+
+		case "github":
 			githubAuth, err := loginwithgithub.NewGithubProvider(clientID, clientSecret)
 			if err != nil {
 				return nil, fmt.Errorf("error building github auth provider: %w", err)
@@ -130,6 +132,11 @@ func New(opt Options) (*Server, error) {
 				return nil, fmt.Errorf("error building login component: %w", err)
 			}
 			s.Components = append(s.Components, loginComponent)
+		case "":
+			return nil, fmt.Errorf("OAUTH2_PROVIDER must be set to one of google / github")
+
+		default:
+			return nil, fmt.Errorf("OAUTH2_PROVIDER %q not known", authProvider)
 		}
 	}
 

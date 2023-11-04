@@ -54,6 +54,14 @@ func (c *Component) RegisterHandlers(s *components.Server, mux *http.ServeMux) e
 	return nil
 }
 
+func (c *Component) Key() string {
+	return "pages"
+}
+
+func (c *Component) ScopeValues() any {
+	return nil
+}
+
 func (c *Component) addHandlersFromDir(s *components.Server, mux *http.ServeMux, p string) error {
 	entries, err := fs.ReadDir(c.options.Base, p)
 	if err != nil {
@@ -81,7 +89,7 @@ func (c *Component) addHandlers(s *components.Server, mux *http.ServeMux, p stri
 			Data: []byte(templateData),
 		}
 
-		endpoint := &TemplateEndpoint{template: template}
+		endpoint := &TemplateEndpoint{server: s, template: template}
 		serveOn := "/" + p
 		// Hack to we don't always have to call fs.Embed
 		if strings.HasPrefix(serveOn, "/pages/") {
@@ -104,12 +112,13 @@ func (c *Component) addHandlers(s *components.Server, mux *http.ServeMux, p stri
 }
 
 type TemplateEndpoint struct {
+	server   *components.Server
 	template templates.Template
 }
 
 func (e *TemplateEndpoint) ServeHTTP(ctx context.Context, req *components.Request) (components.Response, error) {
 	var b bytes.Buffer
-	if err := e.template.RenderHTML(ctx, &b, req); err != nil {
+	if err := e.template.RenderHTML(ctx, &b, e.server, req); err != nil {
 		return nil, err
 	}
 	response := components.SimpleResponse{
