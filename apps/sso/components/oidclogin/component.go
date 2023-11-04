@@ -4,22 +4,19 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/justinsb/kweb/apps/sso/pkg/oidc"
 	"github.com/justinsb/kweb/components"
 	"github.com/justinsb/kweb/components/users"
 	"github.com/justinsb/kweb/templates/scopes"
 )
 
 type OIDCLoginComponent struct {
-	oidcAuthenticator *oidcAuthenticator // todo: multiple?
-
-	userComponent *users.UserComponent
+	oidcAuthenticator *oidc.Authenticator // todo: multiple?
 }
 
-func NewOIDCLoginComponent(ctx context.Context, opt Options, userComponent *users.UserComponent) *OIDCLoginComponent {
-	authenticator := newOIDCAuthenticator(opt)
+func NewOIDCLoginComponent(ctx context.Context, oidcAuthentiator *oidc.Authenticator, userComponent *users.UserComponent) *OIDCLoginComponent {
 	return &OIDCLoginComponent{
-		oidcAuthenticator: authenticator,
-		userComponent:     userComponent,
+		oidcAuthenticator: oidcAuthentiator,
 	}
 }
 

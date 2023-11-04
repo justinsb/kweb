@@ -10,6 +10,7 @@ import (
 	"github.com/justinsb/kweb"
 	"github.com/justinsb/kweb/apps/sso/components/jwtissuer"
 	"github.com/justinsb/kweb/apps/sso/components/oidclogin"
+	"github.com/justinsb/kweb/apps/sso/pkg/oidc"
 	"github.com/justinsb/kweb/components/keystore"
 	"github.com/justinsb/kweb/components/keystore/pb"
 	"k8s.io/client-go/kubernetes"
@@ -29,14 +30,12 @@ func main() {
 	opt.Server.Pages.Base = pages
 	opt.Server.UseSPIFFE = true
 
-	jwtIssuer := &jwtissuer.JWTIssuerComponent{}
-	flag.StringVar(&jwtIssuer.Audience, "jwtIssuer.audience", jwtIssuer.Audience, "")
-	flag.StringVar(&jwtIssuer.Issuer, "jwtIssuer.issuer", jwtIssuer.Issuer, "")
-	flag.StringVar(&jwtIssuer.CookieDomain, "jwtIssuer.cookieDomain", jwtIssuer.CookieDomain, "")
+	jwtIssuerOptions := jwtissuer.Options{}
+	flag.StringVar(&jwtIssuerOptions.CookieDomain, "jwtIssuer.cookieDomain", jwtIssuerOptions.CookieDomain, "")
 
-	oidcLogin := oidclogin.Options{}
-	flag.StringVar(&oidcLogin.Issuer, "oidcLogin.issuer", oidcLogin.Issuer, "")
-	flag.StringVar(&oidcLogin.Audience, "oidcLogin.audience", oidcLogin.Audience, "")
+	oidcOptions := oidc.Options{}
+	flag.StringVar(&oidcOptions.Issuer, "oidcLogin.issuer", oidcOptions.Issuer, "")
+	flag.StringVar(&oidcOptions.Audience, "oidcLogin.audience", oidcOptions.Audience, "")
 
 	var errors []error
 	flag.CommandLine.VisitAll(func(f *flag.Flag) {
@@ -77,12 +76,14 @@ func main() {
 	if err != nil {
 		klog.Fatalf("error building kubernetes keys: %v", err)
 	}
-	jwtIssuer.Keys = keys
 
 	userComponent := app.Users()
-	oidcLoginComponent := oidclogin.NewOIDCLoginComponent(ctx, oidcLogin, userComponent)
+	oidcAuthentiator := oidc.NewAuthenticator(userComponent, oidcOptions)
+
+	oidcLoginComponent := oidclogin.NewOIDCLoginComponent(ctx, oidcAuthentiator, userComponent)
 	app.AddComponent(oidcLoginComponent)
 
+	jwtIssuer := jwtissuer.NewJWTIssuerComponent(keys, oidcAuthentiator, jwtIssuerOptions)
 	app.AddComponent(jwtIssuer)
 
 	app.RunFromMain()

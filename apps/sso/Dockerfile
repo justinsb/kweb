@@ -23,6 +23,7 @@ RUN CGO_ENABLED=0 go build -v \
 COPY apps/sso/*.go apps/sso/
 COPY apps/sso/pages apps/sso/pages
 COPY apps/sso/components apps/sso/components
+COPY apps/sso/pkg apps/sso/pkg
 
 RUN CGO_ENABLED=0 go build -v -o /kweb-sso ./apps/sso
 
