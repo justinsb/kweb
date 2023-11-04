@@ -17,12 +17,12 @@ import (
 func (c *JWTIssuerComponent) buildJWTToken(userID string, scopes []string, expiration time.Duration) (*oauth2.Token, error) {
 	var claims jws.ClaimSet
 	// email address of the client_id of the application making the access token request
-	claims.Iss = c.Issuer
+	claims.Iss = c.oidcAuthenticator.GetIssuer()
 	// space-delimited list of the permissions the application requests
 	claims.Scope = strings.Join(scopes, " ")
 
 	// descriptor of the intended target of the assertion (Optional).
-	claims.Aud = c.Audience
+	claims.Aud = c.oidcAuthenticator.GetAudience()
 	now := time.Now().Unix()
 
 	// the time the assertion was issued (seconds since Unix epoch)
@@ -32,7 +32,7 @@ func (c *JWTIssuerComponent) buildJWTToken(userID string, scopes []string, expir
 
 	claims.Sub = userID
 
-	key, err := c.Keys.ActiveKey()
+	key, err := c.keys.ActiveKey()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get active key: %w", err)
 	}

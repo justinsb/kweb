@@ -12,7 +12,6 @@ import (
 	"github.com/justinsb/kweb/components/users"
 	"github.com/justinsb/kweb/server"
 	"github.com/justinsb/packages/kinspire/client"
-	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
 	"k8s.io/klog/v2"
 )
@@ -77,12 +76,8 @@ func (a *App) run(ctx context.Context) error {
 		}
 		klog.Infof("my x509 is %v", svid)
 
-		// Allowed SPIFFE ID
-		clientID := spiffeid.RequireFromString("spiffe://k8s.local/ns/default/sa/gateway-instance")
-
-		klog.Infof("creating httpserver, requires %v", clientID)
 		// Create a `tls.Config` to allow mTLS connections, and verify that presented certificate has the specified SPIFFE ID
-		tlsConfig := tlsconfig.MTLSServerConfig(source, source, tlsconfig.AuthorizeID(clientID))
+		tlsConfig := tlsconfig.MTLSServerConfig(source, source, tlsconfig.AuthorizeAny())
 		a.options.Server.TLSConfig = tlsConfig
 	}
 	return a.listenAndServe(ctx)

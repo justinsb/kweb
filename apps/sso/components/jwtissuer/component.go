@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/justinsb/kweb/apps/sso/pkg/oidc"
 	"github.com/justinsb/kweb/components"
 	"github.com/justinsb/kweb/components/cookies"
 	"github.com/justinsb/kweb/components/keystore"
@@ -21,13 +22,23 @@ import (
 
 const CookieNameJWT = "auth-token"
 
-type JWTIssuerComponent struct {
-	Keys keystore.KeySet
-
-	Issuer   string
-	Audience string
-
+type Options struct {
 	CookieDomain string
+}
+
+type JWTIssuerComponent struct {
+	keys keystore.KeySet
+
+	oidcAuthenticator *oidc.Authenticator
+	opts              Options
+}
+
+func NewJWTIssuerComponent(keys keystore.KeySet, oidcAuthenticator *oidc.Authenticator, opts Options) *JWTIssuerComponent {
+	return &JWTIssuerComponent{
+		keys:              keys,
+		oidcAuthenticator: oidcAuthenticator,
+		opts:              opts,
+	}
 }
 
 var _ components.RequestFilter = &JWTIssuerComponent{}
@@ -112,6 +123,7 @@ func (c *JWTIssuerComponent) ProcessRequest(ctx context.Context, req *components
 func (c *JWTIssuerComponent) RegisterHandlers(s *components.Server, mux *http.ServeMux) error {
 	mux.HandleFunc("/.well-known/openid-configuration", s.ServeHTTP(c.ServeOpenIDConfiguration))
 	mux.HandleFunc("/.oidc/jwks", s.ServeHTTP(c.ServeJWKS))
+	mux.HandleFunc("/.oidc/userinfo", s.ServeHTTP(c.ServeUserInfo))
 	return nil
 }
 
@@ -188,8 +200,8 @@ func (c *JWTIssuerComponent) setCookie(ctx context.Context, req *components.Requ
 		setCookie.Expires = time.Unix(0, 0)
 	}
 
-	if c.CookieDomain != "" {
-		setCookie.Domain = c.CookieDomain
+	if c.opts.CookieDomain != "" {
+		setCookie.Domain = c.opts.CookieDomain
 	}
 
 	if !req.BrowserUsingHTTPS() {
