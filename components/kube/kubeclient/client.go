@@ -275,7 +275,7 @@ type ApplyOptions struct {
 	Force        bool
 }
 
-func (c *Client) Apply(ctx context.Context, obj kube.Object, opt ApplyOptions) error {
+func (c *Client) Apply(ctx context.Context, obj kube.Object, opt ApplyOptions, out kube.Object) error {
 	metadata := obj.GetMetadata()
 
 	kindInfo := kube.GetKindInfo(obj)
@@ -353,9 +353,11 @@ func (c *Client) Apply(ctx context.Context, obj kube.Object, opt ApplyOptions) e
 		return fmt.Errorf("unexpected response %v", response.Status)
 	}
 
-	parser := kubejson.UnmarshalOptions{}
-	if err := parser.Unmarshal(b, obj); err != nil {
-		return fmt.Errorf("error parsing response: %w", err)
+	if out != nil {
+		parser := kubejson.UnmarshalOptions{}
+		if err := parser.Unmarshal(b, out); err != nil {
+			return fmt.Errorf("error parsing response: %w", err)
+		}
 	}
 
 	return nil

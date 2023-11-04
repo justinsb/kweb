@@ -50,9 +50,16 @@ func RedirectResponse(redirectURL string) Response {
 type SimpleResponse struct {
 	StatusCode int
 	StatusText string
+	headers    http.Header
 	Body       []byte
 }
 
+func (r *SimpleResponse) Headers() http.Header {
+	if r.headers == nil {
+		r.headers = make(http.Header)
+	}
+	return r.headers
+}
 func (r SimpleResponse) WriteTo(ctx context.Context, w http.ResponseWriter) {
 	statusCode := r.StatusCode
 	if statusCode == 0 {
@@ -63,6 +70,11 @@ func (r SimpleResponse) WriteTo(ctx context.Context, w http.ResponseWriter) {
 		statusText = http.StatusText(statusCode)
 	}
 
+	for k, values := range r.headers {
+		for _, v := range values {
+			w.Header().Add(k, v)
+		}
+	}
 	w.WriteHeader(statusCode)
 	w.Write(r.Body)
 }
