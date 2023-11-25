@@ -62,6 +62,8 @@ func (s *Server) ServeHTTP(fn func(ctx context.Context, req *Request) (Response,
 		req := &Request{
 			Request: r,
 		}
+		req.PathParameters = make(map[string]string)
+
 		ctx = context.WithValue(ctx, contextKeyRequest, req)
 
 		// This is a little tricky, as req.Request and Context refer to each other

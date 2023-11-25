@@ -76,6 +76,13 @@ func (e *IndexExpression) Eval(o interface{}) (interface{}, bool) {
 		// TODO: Only at top level?
 		return o.Eval(e.Key)
 
+	case *unstructured.Unstructured:
+		v, ok := o.Object[e.Key]
+		if !ok {
+			return nil, false
+		}
+		return v, true
+
 	case unstructured.Unstructured:
 		v, ok := o.Object[e.Key]
 		if !ok {
