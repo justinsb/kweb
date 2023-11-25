@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/justinsb/kweb"
+	"github.com/justinsb/kweb/components"
 	"github.com/justinsb/kweb/templates/scopes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -17,7 +18,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-//go:embed pages
+//go:embed all:pages
 var pages embed.FS
 
 func main() {
@@ -96,6 +97,11 @@ func (a *App) GlobalValues(ctx context.Context, scope *scopes.Scope) {
 			return a.Namespaces(ctx)
 		},
 	}
+	scope.Values["namespace"] = scopes.Value{
+		Function: func() interface{} {
+			return a.Namespace(ctx)
+		},
+	}
 
 }
 
@@ -125,4 +131,16 @@ func (a *App) Namespaces(ctx context.Context) interface{} {
 		klog.Fatalf("todo: %v", err)
 	}
 	return namespaces.Items
+}
+
+func (a *App) Namespace(ctx context.Context) interface{} {
+	req := components.GetRequest(ctx)
+	name := req.PathParameter("name")
+
+	var opts metav1.GetOptions
+	namespace, err := a.dynamicClient.Resource(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"}).Get(ctx, name, opts)
+	if err != nil {
+		klog.Fatalf("todo: %v", err)
+	}
+	return namespace
 }

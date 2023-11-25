@@ -104,14 +104,33 @@ func (c *Component) addHandlers(s *components.Server, mux *http.ServeMux, p stri
 		if strings.HasSuffix(serveOn, "/index") {
 			serveOn = strings.TrimSuffix(serveOn, "index")
 		}
+		templateTokens := strings.Split(strings.Trim(serveOn, "/"), "/")
 
+		if strings.HasSuffix(serveOn, "/_name") {
+			serveOn = strings.TrimSuffix(serveOn, "_name")
+		}
+		templateMap := make(map[int]string)
+		for i, s := range templateTokens {
+			if strings.HasPrefix(s, "_") {
+				templateMap[i] = strings.TrimPrefix(s, "_")
+			}
+		}
+		servePage := func(ctx context.Context, req *components.Request) (components.Response, error) {
+			tokens := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
+			for i, s := range templateMap {
+				req.PathParameters[s] = tokens[i]
+			}
+			klog.Infof("req %+v", req.URL.Path)
+			klog.Infof("pathparameter %+v", req.PathParameters)
+			return endpoint.ServeHTTP(ctx, req)
+		}
 		klog.Infof("serving %s on %s", p, serveOn)
-		mux.HandleFunc(serveOn, s.ServeHTTP(endpoint.ServeHTTP))
+		mux.HandleFunc(serveOn, s.ServeHTTP(servePage))
 	}
 
 	if info.IsDir() {
 		if err := c.addHandlersFromDir(s, mux, p); err != nil {
-			return nil
+			return err
 		}
 	}
 	return nil

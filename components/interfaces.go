@@ -12,6 +12,8 @@ type Request struct {
 	Session Session
 
 	*http.Request
+
+	PathParameters map[string]string
 }
 
 // Session implements session storage.
@@ -40,4 +42,8 @@ type RequestFilterChain func(ctx context.Context, req *Request) (Response, error
 type RequestFilterFunction func(ctx context.Context, req *Request, next RequestFilterChain) (Response, error)
 type RequestFilter interface {
 	ProcessRequest(ctx context.Context, req *Request, next RequestFilterChain) (Response, error)
+}
+
+func (r *Request) PathParameter(key string) string {
+	return r.PathParameters[key]
 }
