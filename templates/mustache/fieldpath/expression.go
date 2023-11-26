@@ -2,6 +2,8 @@ package fieldpath
 
 import (
 	"fmt"
+	"reflect"
+	"strings"
 
 	"github.com/justinsb/kweb/templates/scopes"
 	"google.golang.org/protobuf/proto"
@@ -98,6 +100,14 @@ func (e *IndexExpression) Eval(o interface{}) (interface{}, bool) {
 		}
 		return v, true
 
+	case map[string]string:
+		v, ok := o[e.Key]
+		if !ok {
+			klog.Infof("key %q not found in map %v", e.Key, o)
+			return nil, false
+		}
+		return v, true
+
 	case proto.Message:
 		if o == nil {
 			return nil, false
@@ -117,7 +127,29 @@ func (e *IndexExpression) Eval(o interface{}) (interface{}, bool) {
 		}
 
 	default:
-		klog.Warningf("unhandled type in IndexExpression %v: %T", e, o)
+		val := reflect.ValueOf(o)
+		if val.Kind() != reflect.Struct {
+			klog.Warningf("unhandled type in IndexExpression %v: %T (unexpected reflect kind %v)", e, o, val.Kind())
+			return nil, false
+		}
+		structVal := val.Type()
+		nFields := val.NumField()
+		for i := 0; i < nFields; i++ {
+			// TODO: Cache json lookup
+			field := structVal.Field(i)
+			jsonTag := field.Tag.Get("json")
+			if jsonTag == "" {
+				jsonTag = field.Name
+				jsonTag = strings.ToLower(jsonTag[:1]) + jsonTag[1:]
+			}
+			jsonTag = strings.TrimSuffix(jsonTag, ",omitempty")
+			if jsonTag != e.Key {
+				continue
+			}
+			fieldVal := val.Field(i)
+			return fieldVal.Interface(), true
+		}
+		klog.Warningf("unhandled type in IndexExpression %v: %T (field %q not known)", e, o, e.Key)
 		return nil, false
 	}
 }
