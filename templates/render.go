@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/justinsb/kweb/templates/mustache"
@@ -152,8 +153,21 @@ func (r *Render) renderElementNode(node *html.Node) error {
 			}
 			return nil
 		default:
-			return fmt.Errorf("value %q was not list, was %T", ngForList, val)
+			listValue := reflect.ValueOf(list)
+			if listValue.Kind() != reflect.Slice {
+				return fmt.Errorf("value %q was not list, was %T", ngForList, val)
+			}
+			n := listValue.Len()
+			for i := 0; i < n; i++ {
+				v := listValue.Index(i)
+				if err := forEach(v.Interface()); err != nil {
+					return err
+				}
+			}
+			return nil
+
 		}
+
 	} else {
 		return r.renderElementNodeInner(node)
 	}

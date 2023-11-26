@@ -12,6 +12,8 @@ import (
 	"github.com/justinsb/kweb/templates/scopes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -53,6 +55,7 @@ func main() {
 	if err != nil {
 		klog.Fatalf("error getting kubernetes config: %v", err)
 	}
+	restConfig.QPS = 1000
 	kubeClient, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		klog.Fatalf("error building kubernetes client: %v", err)
@@ -63,6 +66,13 @@ func main() {
 		klog.Fatalf("error building dynamic client: %v", err)
 	}
 	app.dynamicClient = dynamicClient
+
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	if err != nil {
+		klog.Fatalf("error building discovery client: %v", err)
+	}
+	cachedDiscoveryClient := memory.NewMemCacheClient(discoveryClient)
+	app.discoveryClient = cachedDiscoveryClient
 
 	app.App, err = kweb.NewApp(opt)
 	if err != nil {
@@ -77,8 +87,9 @@ func main() {
 type App struct {
 	*kweb.App
 
-	kubeClient    *kubernetes.Clientset
-	dynamicClient dynamic.Interface
+	kubeClient      *kubernetes.Clientset
+	dynamicClient   dynamic.Interface
+	discoveryClient discovery.CachedDiscoveryInterface
 }
 
 func (a *App) GlobalValues(ctx context.Context, scope *scopes.Scope) {
@@ -102,11 +113,20 @@ func (a *App) GlobalValues(ctx context.Context, scope *scopes.Scope) {
 			return a.Namespace(ctx)
 		},
 	}
+	scope.Values["objects"] = scopes.Value{
+		Function: func() interface{} {
+			return a.Objects(ctx)
+		},
+	}
+	scope.Values["groupresources"] = scopes.Value{
+		Function: func() interface{} {
+			return a.GroupResources(ctx)
+		},
+	}
 
 }
 
 func (a *App) Nodes(ctx context.Context) interface{} {
-
 	var opts metav1.ListOptions
 	nodes, err := a.dynamicClient.Resource(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "nodes"}).List(ctx, opts)
 	if err != nil {
@@ -143,4 +163,69 @@ func (a *App) Namespace(ctx context.Context) interface{} {
 		klog.Fatalf("todo: %v", err)
 	}
 	return namespace
+}
+
+func (a *App) Objects(ctx context.Context) interface{} {
+	req := components.GetRequest(ctx)
+	group := req.PathParameter("group")
+	resource := req.PathParameter("resource")
+
+	version := ""
+
+	{
+		response, err := a.discoveryClient.ServerPreferredResources()
+		if err != nil {
+			klog.Fatalf("todo: %v", err)
+		}
+		for _, resourceList := range response {
+			gv, err := schema.ParseGroupVersion(resourceList.GroupVersion)
+			if err != nil {
+				klog.Fatalf("todo: %v", err)
+			}
+			if gv.Group != group {
+				continue
+			}
+			for _, r := range resourceList.APIResources {
+				if r.Name == resource {
+					version = gv.Version
+					break
+				}
+			}
+		}
+	}
+
+	if version == "" {
+		klog.Fatalf("cannot find version for %s/%s", group, resource)
+	}
+
+	gvr := schema.GroupVersionResource{Group: group, Resource: resource, Version: version}
+	var opts metav1.ListOptions
+	response, err := a.dynamicClient.Resource(gvr).List(ctx, opts)
+	if err != nil {
+		klog.Fatalf("todo: %v", err)
+	}
+	return response.Items
+}
+
+func (a *App) GroupResources(ctx context.Context) interface{} {
+	response, err := a.discoveryClient.ServerPreferredResources()
+	if err != nil {
+		klog.Fatalf("todo: %v", err)
+	}
+
+	var grs []schema.GroupResource
+	for _, resourceList := range response {
+		gv, err := schema.ParseGroupVersion(resourceList.GroupVersion)
+		if err != nil {
+			klog.Fatalf("todo: %v", err)
+		}
+		for _, r := range resourceList.APIResources {
+			grs = append(grs, schema.GroupResource{
+				Group:    gv.Group,
+				Resource: r.Name,
+			})
+		}
+	}
+
+	return grs
 }

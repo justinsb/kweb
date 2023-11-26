@@ -4,4 +4,8 @@
   <a href="nodes">Nodes</a>
   <a href="pods">Pods</a>
   <a href="namespaces">Namespaces</a>
+
+  <div *ngFor="let gr of groupresources">
+    <a href="/groups/{{gr.group}}/resources/{{gr.resource}}">{{gr.group}}::{{gr.resource}}</a>
+  </div>
 </body>

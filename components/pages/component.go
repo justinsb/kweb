@@ -106,15 +106,22 @@ func (c *Component) addHandlers(s *components.Server, mux *http.ServeMux, p stri
 		}
 		templateTokens := strings.Split(strings.Trim(serveOn, "/"), "/")
 
-		if strings.HasSuffix(serveOn, "/_name") {
-			serveOn = strings.TrimSuffix(serveOn, "_name")
-		}
 		templateMap := make(map[int]string)
 		for i, s := range templateTokens {
 			if strings.HasPrefix(s, "_") {
 				templateMap[i] = strings.TrimPrefix(s, "_")
 			}
 		}
+		prefix := ""
+		for _, s := range templateTokens {
+			if strings.HasPrefix(s, "_") {
+				prefix += "/"
+				break
+			}
+			prefix += "/" + s
+		}
+		serveOn = prefix
+
 		servePage := func(ctx context.Context, req *components.Request) (components.Response, error) {
 			tokens := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
 			for i, s := range templateMap {
