@@ -53,8 +53,17 @@ func loadRaw(fs fs.FS, key string) ([]byte, error) {
 }
 
 func (c *Component) RegisterHandlers(s *components.Server, mux *http.ServeMux) error {
-	if err := c.addHandlersFromDir(s, mux, "."); err != nil {
+	m := &pageMux{
+		s:        s,
+		mux:      mux,
+		patterns: make(map[string]*patternMux),
+	}
+	if err := m.addHandlersFromDir(c.options.Base, "."); err != nil {
 		return err
+	}
+
+	for pattern, handler := range m.patterns {
+		mux.HandleFunc(pattern, s.ServeHTTP(handler.ServeHTTP))
 	}
 	return nil
 }
@@ -65,15 +74,61 @@ func (c *Component) AddToScope(ctx context.Context, scope *scopes.Scope) {
 	}
 }
 
-func (c *Component) addHandlersFromDir(s *components.Server, mux *http.ServeMux, p string) error {
-	entries, err := fs.ReadDir(c.options.Base, p)
+type pageMux struct {
+	s   *components.Server
+	mux *http.ServeMux
+
+	patterns map[string]*patternMux
+}
+
+type patternMux struct {
+	handlers []patternHandler
+}
+
+type patternHandler struct {
+	match       []string
+	templateMap map[int]string
+	handler     func(ctx context.Context, req *components.Request) (components.Response, error)
+}
+
+func (m *patternMux) ServeHTTP(ctx context.Context, req *components.Request) (components.Response, error) {
+	tokens := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
+	for _, h := range m.handlers {
+		klog.Infof("check match %+v", h.match)
+		if len(h.match) != len(tokens) {
+			continue
+		}
+		isMatch := true
+		for i, s := range h.match {
+			if s == "" {
+				continue
+			}
+			if s != tokens[i] {
+				isMatch = false
+				break
+			}
+		}
+		if !isMatch {
+			continue
+		}
+		for i, s := range h.templateMap {
+			req.PathParameters[s] = tokens[i]
+		}
+		return h.handler(ctx, req)
+	}
+	klog.Warningf("no match found for tokens %+v", tokens)
+	return components.ErrorResponse(http.StatusNotFound), nil
+}
+
+func (m *pageMux) addHandlersFromDir(base fs.FS, p string) error {
+	entries, err := fs.ReadDir(base, p)
 	if err != nil {
 		return fmt.Errorf("error from ReadDir(%q): %w", p, err)
 	}
 
 	for _, entry := range entries {
 		name := path.Join(p, entry.Name())
-		if err := c.addHandlers(s, mux, name, entry); err != nil {
+		if err := m.addHandlers(base, name, entry); err != nil {
 			return err
 		}
 	}
@@ -81,9 +136,9 @@ func (c *Component) addHandlersFromDir(s *components.Server, mux *http.ServeMux,
 	return nil
 }
 
-func (c *Component) addHandlers(s *components.Server, mux *http.ServeMux, p string, info fs.DirEntry) error {
+func (m *pageMux) addHandlers(base fs.FS, p string, info fs.DirEntry) error {
 	if !info.IsDir() {
-		templateData, err := loadRaw(c.options.Base, p)
+		templateData, err := loadRaw(base, p)
 		if err != nil {
 			return fmt.Errorf("error reading %q: %w", p, err)
 		}
@@ -92,7 +147,7 @@ func (c *Component) addHandlers(s *components.Server, mux *http.ServeMux, p stri
 			Data: []byte(templateData),
 		}
 
-		endpoint := &TemplateEndpoint{template: template, server: s}
+		endpoint := &TemplateEndpoint{template: template, server: m.s}
 		serveOn := "/" + p
 		// Hack to we don't always have to call fs.Embed
 		if strings.HasPrefix(serveOn, "/pages/") {
@@ -106,37 +161,39 @@ func (c *Component) addHandlers(s *components.Server, mux *http.ServeMux, p stri
 		}
 		templateTokens := strings.Split(strings.Trim(serveOn, "/"), "/")
 
+		match := make([]string, len(templateTokens))
 		templateMap := make(map[int]string)
 		for i, s := range templateTokens {
 			if strings.HasPrefix(s, "_") {
 				templateMap[i] = strings.TrimPrefix(s, "_")
+			} else {
+				match[i] = s
 			}
 		}
-		prefix := ""
+		pattern := ""
 		for _, s := range templateTokens {
 			if strings.HasPrefix(s, "_") {
-				prefix += "/"
+				pattern += "/"
 				break
 			}
-			prefix += "/" + s
+			pattern += "/" + s
 		}
-		serveOn = prefix
 
-		servePage := func(ctx context.Context, req *components.Request) (components.Response, error) {
-			tokens := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
-			for i, s := range templateMap {
-				req.PathParameters[s] = tokens[i]
-			}
-			klog.Infof("req %+v", req.URL.Path)
-			klog.Infof("pathparameter %+v", req.PathParameters)
-			return endpoint.ServeHTTP(ctx, req)
-		}
 		klog.Infof("serving %s on %s", p, serveOn)
-		mux.HandleFunc(serveOn, s.ServeHTTP(servePage))
+		pm, ok := m.patterns[pattern]
+		if !ok {
+			pm = &patternMux{}
+			m.patterns[pattern] = pm
+		}
+		pm.handlers = append(pm.handlers, patternHandler{
+			match:       match,
+			templateMap: templateMap,
+			handler:     endpoint.ServeHTTP,
+		})
 	}
 
 	if info.IsDir() {
-		if err := c.addHandlersFromDir(s, mux, p); err != nil {
+		if err := m.addHandlersFromDir(base, p); err != nil {
 			return err
 		}
 	}

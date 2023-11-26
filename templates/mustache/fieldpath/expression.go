@@ -100,6 +100,14 @@ func (e *IndexExpression) Eval(o interface{}) (interface{}, bool) {
 		}
 		return v, true
 
+	case map[string]string:
+		v, ok := o[e.Key]
+		if !ok {
+			klog.Infof("key %q not found in map %v", e.Key, o)
+			return nil, false
+		}
+		return v, true
+
 	case proto.Message:
 		if o == nil {
 			return nil, false

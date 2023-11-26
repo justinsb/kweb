@@ -1,9 +1,10 @@
 <body>
-    <h1>Resource page!</h1>
+    <h1>Resource List for {{path.group}} {{path.kind}}</h1>
 
     <ul>
         <li *ngFor="let obj of objects">
-            {{obj.metadata.name}}
+            <a
+                href="/groups/{{path.group}}/resources/{{path.resource}}/namespaces/{{obj.metadata.namespace}}/{{obj.metadata.name}}">{{obj.metadata.name}}</a>
         </li>
     </ul>
 
