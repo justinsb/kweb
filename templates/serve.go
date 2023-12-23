@@ -40,6 +40,7 @@ func (s *Template) RenderHTML(ctx context.Context, w io.Writer, req *components.
 	bw := bufio.NewWriter(w)
 	render.w = bw
 	render.data = data
+	render.ctx = ctx
 
 	if err := render.renderNode(page); err != nil {
 		return err

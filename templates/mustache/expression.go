@@ -1,6 +1,7 @@
 package mustache
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -13,10 +14,10 @@ type ExpressionList struct {
 	Expressions []Expression
 }
 
-func (l *ExpressionList) Eval(scope *scopes.Scope) (string, error) {
+func (l *ExpressionList) Eval(ctx context.Context, scope *scopes.Scope) (string, error) {
 	var values []string
 	for _, e := range l.Expressions {
-		v, err := e.Eval(scope)
+		v, err := e.Eval(ctx, scope)
 		if err != nil {
 			return "", err
 		}
@@ -37,7 +38,7 @@ type LiteralExpression struct {
 	Literal string
 }
 
-func (l *LiteralExpression) Eval(scope *scopes.Scope) (string, error) {
+func (l *LiteralExpression) Eval(ctx context.Context, scope *scopes.Scope) (string, error) {
 	return l.Literal, nil
 }
 
@@ -53,7 +54,7 @@ func (l *MustacheExpression) DebugString() string {
 	return l.Expression
 }
 
-func (l *MustacheExpression) Eval(scope *scopes.Scope) (string, error) {
+func (l *MustacheExpression) Eval(ctx context.Context, scope *scopes.Scope) (string, error) {
 	// TODO: Pre-parse
 	p := fieldpath.Parser{}
 	p.Init(l.Expression)
@@ -67,7 +68,7 @@ func (l *MustacheExpression) Eval(scope *scopes.Scope) (string, error) {
 	}
 
 	klog.Infof("parsed expression %q => %q", l.Expression, exprTree.String())
-	v, ok := exprTree.Eval(scope)
+	v, ok := exprTree.Eval(ctx, scope)
 	if !ok {
 		return "", nil
 	}
@@ -75,6 +76,6 @@ func (l *MustacheExpression) Eval(scope *scopes.Scope) (string, error) {
 }
 
 type Expression interface {
-	Eval(scope *scopes.Scope) (string, error)
+	Eval(ctx context.Context, scope *scopes.Scope) (string, error)
 	DebugString() string
 }
