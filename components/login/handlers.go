@@ -18,9 +18,6 @@ import (
 
 const CookieNameJWT = "auth-token"
 
-// const stateCookieName = "_oauth2_state"
-const sessionOauth2State = "_oauth2_state"
-
 func randomID(bytes int) string {
 	b := make([]byte, bytes)
 	if _, err := cryptorand.Read(b); err != nil {
@@ -50,7 +47,7 @@ func (p *Component) StartOAuth2Login(ctx context.Context, req *components.Reques
 
 	stateString := encodeState(state)
 
-	req.Session.Set(sessionOauth2State, state)
+	req.Session.Set(state)
 
 	redirectURI := p.getRedirectURI(req, providerID)
 
@@ -86,30 +83,27 @@ func (p *Component) OAuthCallback(ctx context.Context, req *components.Request) 
 		return nil, err
 	}
 
-	stateObj := req.Session.Get(sessionOauth2State)
-	var state *pb.StateData
-	if stateObj != nil {
-		state = stateObj.(*pb.StateData)
-	}
+	sessionState := pb.StateData{}
+
 	stateString := ""
-	if state != nil {
-		stateString = encodeState(state)
+	if req.Session.Get(&sessionState) {
+		stateString = encodeState(&sessionState)
 	}
 
 	stateParameter := req.URL.Query().Get("state")
 	if stateParameter != stateString {
 		klog.Warningf("state in session does not match state in request")
-		return nil, fmt.Errorf("state mismatch got=%q vs want=%q", stateParameter, state)
+		return nil, fmt.Errorf("state mismatch got=%q vs want=%q", stateParameter, stateString)
 	}
 
-	req.Session.Clear(sessionOauth2State)
+	req.Session.Clear(&pb.StateData{})
 
 	errorString := req.Form.Get("error")
 	if errorString != "" {
 		return components.ErrorResponse(http.StatusForbidden), fmt.Errorf("permission denied: %v", errorString)
 	}
 
-	redirect := state.Redirect
+	redirect := sessionState.Redirect
 	if !strings.HasPrefix(redirect, "/") {
 		redirect = "/"
 	}
@@ -119,10 +113,10 @@ func (p *Component) OAuthCallback(ctx context.Context, req *components.Request) 
 		return components.ErrorResponse(http.StatusBadRequest), errors.New("missing code")
 	}
 
-	redirectURI := p.getRedirectURI(req, state.ProviderId)
-	provider := p.providers[state.ProviderId]
+	redirectURI := p.getRedirectURI(req, sessionState.ProviderId)
+	provider := p.providers[sessionState.ProviderId]
 	if provider == nil {
-		return nil, fmt.Errorf("unknown provider %q", state.ProviderId)
+		return nil, fmt.Errorf("unknown provider %q", sessionState.ProviderId)
 	}
 
 	if err := provider.Redeem(ctx, redirectURI, code); err != nil {

@@ -22,6 +22,7 @@ import (
 	"github.com/justinsb/kweb/components/login"
 	"github.com/justinsb/kweb/components/oauthsessions"
 	"github.com/justinsb/kweb/components/pages"
+	"github.com/justinsb/kweb/components/sessions/kubesessionstorage"
 
 	// "github.com/justinsb/kweb/components/login/providers"
 	"github.com/justinsb/kweb/components/login/providers/loginwithgithub"
@@ -60,6 +61,11 @@ func New(opt Options) (*Server, error) {
 		return nil, fmt.Errorf("error getting kubernetes configuration: %w", err)
 	}
 
+	kubeClient, err := kubeclient.New(restConfig)
+	if err != nil {
+		return nil, fmt.Errorf("error building kubernetes controller client: %w", err)
+	}
+
 	s := &Server{}
 
 	healthcheckComponent := healthcheck.NewHealthcheckComponent()
@@ -68,16 +74,13 @@ func New(opt Options) (*Server, error) {
 	cookiesComponent := cookies.NewCookiesComponent()
 	s.Components = append(s.Components, cookiesComponent)
 
-	sessionComponent := sessions.NewSessionComponent()
+	// sessionStorage := memorystorage.NewMemorySessionStorage()
+	sessionStorage := kubesessionstorage.NewKubeSessionStorage(kubeClient)
+	sessionComponent := sessions.NewSessionComponent(sessionStorage)
 	s.Components = append(s.Components, sessionComponent)
 
 	pagesComponent := pages.New(opt.Pages)
 	s.Components = append(s.Components, pagesComponent)
-
-	kubeClient, err := kubeclient.New(restConfig)
-	if err != nil {
-		return nil, fmt.Errorf("error building kubernetes controller client: %w", err)
-	}
 
 	userComponent, err := users.NewUserComponent(kubeClient, opt.UserNamespaceStrategy)
 	if err != nil {

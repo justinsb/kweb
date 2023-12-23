@@ -2,11 +2,8 @@ package sessions
 
 import (
 	"context"
-	cryptorand "crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/justinsb/kweb/components"
@@ -20,13 +17,12 @@ const cookieSessionID = "session"
 
 // SessionComponent is the component that implements Sessions
 type SessionComponent struct {
-	mutex    sync.Mutex
-	sessions map[string]*Session
+	storage Storage
 }
 
-func NewSessionComponent() *SessionComponent {
+func NewSessionComponent(storage Storage) *SessionComponent {
 	return &SessionComponent{
-		sessions: make(map[string]*Session),
+		storage: storage,
 	}
 }
 
@@ -42,10 +38,11 @@ func (c *SessionComponent) beforeRequest(ctx context.Context, req *components.Re
 
 	var session *Session
 	if sessionID != "" {
-		c.mutex.Lock()
-		session = c.sessions[sessionID]
-		c.mutex.Unlock()
-
+		s, err := c.storage.LookupSession(ctx, sessionID)
+		if err != nil {
+			return nil, err
+		}
+		session = s
 		if session != nil {
 			klog.Infof("using session %q: %#v", sessionID, session)
 			return session, nil
@@ -78,14 +75,15 @@ func (c *SessionComponent) ProcessRequest(ctx context.Context, req *components.R
 	}
 
 	if session.dirty {
+		err := c.storage.WriteSession(ctx, session)
+		if err != nil {
+			return nil, err
+		}
+
 		if session.newSession {
-			sessionID, err := c.generateSessionID()
-			if err != nil {
-				return nil, err
-			}
 			sessionCookie := http.Cookie{
 				Name:     cookieSessionID,
-				Value:    sessionID,
+				Value:    session.ID,
 				Expires:  time.Now().Add(time.Hour * 24 * 365),
 				HttpOnly: true,
 				Secure:   true,
@@ -103,27 +101,13 @@ func (c *SessionComponent) ProcessRequest(ctx context.Context, req *components.R
 
 			cookies.SetCookie(ctx, sessionCookie)
 
-			klog.Infof("storing session %q", sessionID)
-			c.mutex.Lock()
-			c.sessions[sessionID] = session
-			c.mutex.Unlock()
 			session.newSession = false
-			session.ID = sessionID
 		}
 		klog.Infof("session %q => %v", session.ID, debug.JSON(session.values))
 		session.dirty = false
 	}
 
 	return response, nil
-}
-
-func (c *SessionComponent) generateSessionID() (string, error) {
-	b := make([]byte, 32, 32)
-	if _, err := cryptorand.Read(b); err != nil {
-		return "", fmt.Errorf("error building session id: %w", err)
-	}
-	sessionID := base64.RawURLEncoding.EncodeToString(b)
-	return sessionID, nil
 }
 
 func (c *SessionComponent) RegisterHandlers(s *components.Server, mux *http.ServeMux) error {

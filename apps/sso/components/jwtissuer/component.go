@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/justinsb/kweb/apps/sso/pb"
 	"github.com/justinsb/kweb/apps/sso/pkg/oidc"
 	"github.com/justinsb/kweb/components"
 	"github.com/justinsb/kweb/components/cookies"
@@ -84,13 +85,24 @@ func (c *JWTIssuerComponent) ProcessRequest(ctx context.Context, req *components
 
 	redirect := req.Request.FormValue("redirect")
 	if redirect != "" {
-		req.Session.SetString("redirect", redirect)
+		var appData pb.AppSessionData
+		req.Session.Get(&appData)
+		appData.Redirect = redirect
+		req.Session.Set(&appData)
 	}
 	if user != nil {
 		if redirect == "" {
-			redirect = req.Session.GetString("redirect")
+			var appData pb.AppSessionData
+			req.Session.Get(&appData)
+			redirect = appData.Redirect
 		}
 		if redirect != "" {
+			// Clear the redirect (only redirect once per request)
+			var appData pb.AppSessionData
+			req.Session.Get(&appData)
+			appData.Redirect = ""
+			req.Session.Set(&appData)
+
 			return components.RedirectResponse(redirect), nil
 		}
 	}

@@ -19,8 +19,8 @@ var (
 	// We removed SchemeBuilder to keep our dependencies small
 
 	KindUser = KindInfo{
-		Resource: GroupVersion.WithResource("oauthsessions"),
-		objects:  []runtime.Object{&OauthSession{}, &OauthSessionList{}},
+		Resource: GroupVersion.WithResource("sessions"),
+		objects:  []runtime.Object{&Session{}, &SessionList{}},
 	}
 
 	AllKinds = KindInfoList{KindUser}

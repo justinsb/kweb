@@ -99,9 +99,12 @@ func SetUser(ctx context.Context, user *userapi.User) {
 	req := components.GetRequest(ctx)
 	if user != nil {
 		userID := user.Metadata.Name
-		req.Session.SetString(sessionKeyUserID, userID)
+		userInfo := &userapi.UserSessionInfo{
+			UserId: userID,
+		}
+		req.Session.Set(userInfo)
 	} else {
-		req.Session.Clear(sessionKeyUserID)
+		req.Session.Clear(&userapi.UserSessionInfo{})
 	}
 }
 

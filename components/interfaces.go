@@ -18,11 +18,9 @@ type Request struct {
 
 // Session implements session storage.
 type Session interface {
-	Clear(key string)
-	Set(key string, value proto.Message)
-	SetString(key string, value string)
-	Get(key string) proto.Message
-	GetString(key string) string
+	Clear(_ proto.Message)
+	Set(value proto.Message)
+	Get(dest proto.Message) bool
 }
 
 var contextKeyRequest = &Request{}
