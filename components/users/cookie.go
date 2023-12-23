@@ -8,16 +8,15 @@ import (
 	userapi "github.com/justinsb/kweb/components/users/pb"
 )
 
-const sessionKeyUserID = "userid"
-
 func (c *UserComponent) userFromSession(ctx context.Context) (*userapi.User, error) {
 	request := components.GetRequest(ctx)
 
-	userID := request.Session.GetString(sessionKeyUserID)
-	if userID == "" {
+	userSessionInfo := userapi.UserSessionInfo{}
+	request.Session.Get(&userSessionInfo)
+	if userSessionInfo.UserId == "" {
 		return nil, nil
 	}
-	user, err := c.LoadUser(ctx, userID)
+	user, err := c.LoadUser(ctx, userSessionInfo.UserId)
 	if err != nil {
 		return nil, err
 	}

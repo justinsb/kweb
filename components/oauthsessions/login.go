@@ -45,11 +45,12 @@ func (c *OAuthSessionsComponent) StoreSession(ctx context.Context, token *oauth2
 }
 
 func randomID() string {
+	// TODO: Create ids packages
 	b := make([]byte, 32)
 	if _, err := cryptorand.Read(b); err != nil {
 		klog.Fatalf("building random id: %v", err)
 	}
-	sessionID := base32.StdEncoding.EncodeToString(b)
+	sessionID := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b)
 	sessionID = strings.ToLower(sessionID)
 	return sessionID
 }

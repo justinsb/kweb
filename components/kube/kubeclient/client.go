@@ -14,6 +14,7 @@ import (
 	"github.com/justinsb/kweb/components/kube"
 	"github.com/justinsb/kweb/components/kube/kubejson"
 	oauthsessionsapi "github.com/justinsb/kweb/components/oauthsessions/api"
+	kubesessionstorageapi "github.com/justinsb/kweb/components/sessions/kubesessionstorage/api"
 	"google.golang.org/protobuf/proto"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,6 +39,9 @@ func New(restConfig *rest.Config) (*Client, error) {
 
 	scheme := runtime.NewScheme()
 	if err := oauthsessionsapi.AllKinds.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+	if err := kubesessionstorageapi.AllKinds.AddToScheme(scheme); err != nil {
 		return nil, err
 	}
 	uncached, err := client.New(restConfig, client.Options{

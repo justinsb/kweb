@@ -32,3 +32,5 @@ message LinkedAccount {
   string providerUserID = 3;
   string providerUserName = 4;
 }
+
+message UserSessionInfo { string user_id = 1; }
