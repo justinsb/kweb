@@ -7,18 +7,21 @@ import (
 
 	githubapi "github.com/google/go-github/v45/github"
 	"github.com/justinsb/kweb/components"
+	"github.com/justinsb/kweb/components/users"
 	userapi "github.com/justinsb/kweb/components/users/pb"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
+	"k8s.io/klog/v2"
 )
 
 type GithubProvider struct {
-	conf *oauth2.Config
+	conf       *oauth2.Config
+	userMapper components.UserMapper
 }
 
 const ProviderID = "github"
 
-func NewGithubProvider(clientID, clientSecret string) (*GithubProvider, error) {
+func NewGithubProvider(clientID, clientSecret string, userMapper components.UserMapper) (*GithubProvider, error) {
 	conf := &oauth2.Config{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
@@ -26,7 +29,8 @@ func NewGithubProvider(clientID, clientSecret string) (*GithubProvider, error) {
 		Endpoint: github.Endpoint,
 	}
 	return &GithubProvider{
-		conf: conf,
+		conf:       conf,
+		userMapper: userMapper,
 	}, nil
 }
 
@@ -42,27 +46,39 @@ func (p *GithubProvider) GetLoginURL(ctx context.Context, redirectURL string, st
 	return url
 }
 
-func (p *GithubProvider) Redeem(ctx context.Context, redirectURL string, code string) (*components.AuthenticationInfo, *oauth2.Token, error) {
+func (p *GithubProvider) Redeem(ctx context.Context, redirectURL string, code string) error {
 	conf := *p.conf
 	conf.RedirectURL = redirectURL
 
 	token, err := conf.Exchange(ctx, code)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to redeem token: %w", err)
+		return fmt.Errorf("failed to redeem token: %w", err)
 	}
 
 	userInfo, err := p.userInfoForToken(ctx, token)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
 	info := &components.AuthenticationInfo{
 		Provider:         p,
 		ProviderUserID:   strconv.FormatInt(userInfo.GetID(), 10),
 		ProviderUserName: userInfo.GetLogin(),
+		PopulateUserData: p.PopulateUserData,
 	}
 
-	return info, token, nil
+	// set cookie, or deny
+	user, err := p.userMapper.MapToUser(ctx, token, info)
+	if err != nil {
+		klog.Infof("error mapping to user: %v", err)
+		return err
+	}
+
+	klog.Infof("authentication complete %v", info)
+
+	users.SetUser(ctx, user)
+
+	return nil
 }
 
 func (p *GithubProvider) PopulateUserData(ctx context.Context, token *oauth2.Token, authInfo *components.AuthenticationInfo) (*userapi.UserSpec, error) {

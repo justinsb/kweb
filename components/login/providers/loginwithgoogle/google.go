@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/justinsb/kweb/components"
+	"github.com/justinsb/kweb/components/users"
 	userapi "github.com/justinsb/kweb/components/users/pb"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -18,9 +19,10 @@ import (
 type GoogleProvider struct {
 	providerKey string
 	conf        *oauth2.Config
+	userMapper  components.UserMapper
 }
 
-func NewGoogleProvider(providerKey string, clientID, clientSecret string) (*GoogleProvider, error) {
+func NewGoogleProvider(providerKey string, clientID, clientSecret string, userMapper components.UserMapper) (*GoogleProvider, error) {
 	// Discovery document is at https://accounts.google.com/.well-known/openid-configuration
 
 	conf := &oauth2.Config{
@@ -35,6 +37,7 @@ func NewGoogleProvider(providerKey string, clientID, clientSecret string) (*Goog
 	return &GoogleProvider{
 		providerKey: providerKey,
 		conf:        conf,
+		userMapper:  userMapper,
 	}, nil
 }
 
@@ -52,13 +55,13 @@ func (p *GoogleProvider) GetLoginURL(ctx context.Context, redirectURL string, st
 	return url
 }
 
-func (p *GoogleProvider) Redeem(ctx context.Context, redirectURL string, code string) (*components.AuthenticationInfo, *oauth2.Token, error) {
+func (p *GoogleProvider) Redeem(ctx context.Context, redirectURL string, code string) error {
 	conf := *p.conf
 	conf.RedirectURL = redirectURL
 
 	token, err := conf.Exchange(ctx, code)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to redeem token: %w", err)
+		return fmt.Errorf("failed to redeem token: %w", err)
 	}
 
 	// resp, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
@@ -67,31 +70,43 @@ func (p *GoogleProvider) Redeem(ctx context.Context, redirectURL string, code st
 
 	idToken := token.Extra("id_token")
 	if idToken == nil {
-		return nil, nil, fmt.Errorf("id_token was not found")
+		return fmt.Errorf("id_token was not found")
 	}
 	idTokenString, ok := idToken.(string)
 	if !ok {
-		return nil, nil, fmt.Errorf("id_token was not string")
+		return fmt.Errorf("id_token was not string")
 	}
 	claimSet, err := jws.Decode(idTokenString)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error decoding id_token: %w", err)
+		return fmt.Errorf("error decoding id_token: %w", err)
 	}
 
 	if claimSet.Iss != "accounts.google.com" && claimSet.Iss != "https://accounts.google.com" {
-		return nil, nil, fmt.Errorf("unexpected issuer %q", claimSet.Iss)
+		return fmt.Errorf("unexpected issuer %q", claimSet.Iss)
 	}
 
 	if claimSet.Sub == "" {
-		return nil, nil, fmt.Errorf("JWT did not contain 'sub' value")
+		return fmt.Errorf("JWT did not contain 'sub' value")
 	}
 
 	info := &components.AuthenticationInfo{
-		Provider:       p,
-		ProviderUserID: claimSet.Sub,
+		Provider:         p,
+		ProviderUserID:   claimSet.Sub,
+		PopulateUserData: p.PopulateUserData,
 	}
 
-	return info, token, nil
+	// set cookie, or deny
+	user, err := p.userMapper.MapToUser(ctx, token, info)
+	if err != nil {
+		klog.Infof("error mapping to user: %v", err)
+		return err
+	}
+
+	klog.Infof("authentication complete %v", info)
+
+	users.SetUser(ctx, user)
+
+	return nil
 }
 
 type oidcUserInfo struct {

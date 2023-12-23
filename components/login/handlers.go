@@ -2,19 +2,17 @@ package login
 
 import (
 	"context"
+	cryptorand "crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/justinsb/kweb/components"
 	"github.com/justinsb/kweb/components/login/pb"
 	"github.com/justinsb/kweb/components/users"
-	userapi "github.com/justinsb/kweb/components/users/pb"
-	"golang.org/x/oauth2"
 	"k8s.io/klog/v2"
 )
 
@@ -23,11 +21,18 @@ const CookieNameJWT = "auth-token"
 // const stateCookieName = "_oauth2_state"
 const sessionOauth2State = "_oauth2_state"
 
-type UserMapper interface {
-	MapToUser(ctx context.Context, req *components.Request, token *oauth2.Token, info *components.AuthenticationInfo) (*userapi.User, error)
+func randomID(bytes int) string {
+	b := make([]byte, bytes)
+	if _, err := cryptorand.Read(b); err != nil {
+		klog.Fatalf("building random id: %v", err)
+	}
+	sessionID := base64.RawURLEncoding.EncodeToString(b)
+	return sessionID
 }
 
-func (p *Component) OAuthStart(ctx context.Context, req *components.Request) (components.Response, error) {
+func (p *Component) StartOAuth2Login(ctx context.Context, req *components.Request, provider components.AuthenticationProvider) (components.Response, error) {
+	providerID := provider.ProviderID()
+
 	err := req.ParseForm()
 	if err != nil {
 		return components.ErrorResponse(http.StatusBadRequest), err
@@ -39,17 +44,17 @@ func (p *Component) OAuthStart(ctx context.Context, req *components.Request) (co
 	}
 
 	state := &pb.StateData{}
-	// state.ProviderId = providerID
+	state.ProviderId = providerID
 	state.Redirect = redirect
-	state.Nonce = strconv.FormatInt(rand.Int63(), 16)
+	state.Nonce = randomID(32)
 
 	stateString := encodeState(state)
 
 	req.Session.Set(sessionOauth2State, state)
 
-	redirectURI := p.getRedirectURI(req)
+	redirectURI := p.getRedirectURI(req, providerID)
 
-	return components.RedirectResponse(p.Provider.GetLoginURL(ctx, redirectURI, stateString)), nil
+	return components.RedirectResponse(provider.GetLoginURL(ctx, redirectURI, stateString)), nil
 }
 
 func (p *Component) Logout(ctx context.Context, req *components.Request) (components.Response, error) {
@@ -58,7 +63,7 @@ func (p *Component) Logout(ctx context.Context, req *components.Request) (compon
 	return components.RedirectResponse("/"), nil
 }
 
-func (p *Component) getRedirectURI(req *components.Request) string {
+func (p *Component) getRedirectURI(req *components.Request, providerID string) string {
 	var u url.URL
 	u.Scheme = req.URL.Scheme
 	if u.Scheme == "" {
@@ -70,7 +75,7 @@ func (p *Component) getRedirectURI(req *components.Request) string {
 		u.Scheme = "https"
 	}
 
-	u.Path = "/_login/oauth2-callback/" + p.Provider.ProviderID()
+	u.Path = "/_login/oauth2-callback/" + providerID
 	return u.String()
 }
 
@@ -92,9 +97,8 @@ func (p *Component) OAuthCallback(ctx context.Context, req *components.Request) 
 	}
 
 	stateParameter := req.URL.Query().Get("state")
-
 	if stateParameter != stateString {
-		klog.Warningf("state in cookie does not match state in request")
+		klog.Warningf("state in session does not match state in request")
 		return nil, fmt.Errorf("state mismatch got=%q vs want=%q", stateParameter, state)
 	}
 
@@ -115,22 +119,15 @@ func (p *Component) OAuthCallback(ctx context.Context, req *components.Request) 
 		return components.ErrorResponse(http.StatusBadRequest), errors.New("missing code")
 	}
 
-	redirectURI := p.getRedirectURI(req)
-	info, token, err := p.Provider.Redeem(ctx, redirectURI, code)
-	if err != nil {
-		return nil, fmt.Errorf("error redeeming code: %w", err)
+	redirectURI := p.getRedirectURI(req, state.ProviderId)
+	provider := p.providers[state.ProviderId]
+	if provider == nil {
+		return nil, fmt.Errorf("unknown provider %q", state.ProviderId)
 	}
 
-	// set cookie, or deny
-	userInfo, err := p.UserMapper.MapToUser(ctx, req, token, info)
-	if err != nil {
-		klog.Infof("error mapping to user: %v", err)
-		return components.ErrorResponse(http.StatusInternalServerError), err
+	if err := provider.Redeem(ctx, redirectURI, code); err != nil {
+		return nil, err
 	}
-
-	klog.Infof("authentication complete %v", info)
-
-	users.SetUser(ctx, userInfo)
 
 	return components.RedirectResponse(redirect), nil
 }

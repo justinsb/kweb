@@ -13,6 +13,7 @@ import (
 
 	"github.com/justinsb/kweb/components/kube"
 	"github.com/justinsb/kweb/components/kube/kubejson"
+	oauthsessionsapi "github.com/justinsb/kweb/components/oauthsessions/api"
 	"google.golang.org/protobuf/proto"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"

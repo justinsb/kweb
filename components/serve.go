@@ -13,7 +13,22 @@ type Server struct {
 	Components []Component
 }
 
-func GetComponent[T any](s *Server, dest *T) error {
+var contextKeyServer = &Server{}
+
+func GetServer(ctx context.Context) *Server {
+	return ctx.Value(contextKeyServer).(*Server)
+}
+
+func WithServer(ctx context.Context, s *Server) context.Context {
+	return context.WithValue(ctx, contextKeyServer, s)
+}
+
+func GetComponent[T any](ctx context.Context, dest *T) error {
+	server := GetServer(ctx)
+	return GetComponentFromServer(server, dest)
+}
+
+func GetComponentFromServer[T any](s *Server, dest *T) error {
 	var matches []T
 	for _, component := range s.Components {
 		match, ok := component.(T)
@@ -65,6 +80,7 @@ func (s *Server) ServeHTTP(fn func(ctx context.Context, req *Request) (Response,
 		req.PathParameters = make(map[string]string)
 
 		ctx = context.WithValue(ctx, contextKeyRequest, req)
+		ctx = context.WithValue(ctx, contextKeyServer, s)
 
 		// This is a little tricky, as req.Request and Context refer to each other
 		req.Request = req.Request.WithContext(ctx)
