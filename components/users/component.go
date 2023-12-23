@@ -117,7 +117,7 @@ func (c *UserComponent) buildUserKey(userID string) types.NamespacedName {
 	}
 }
 
-func (c *UserComponent) MapToUser(ctx context.Context, req *components.Request, token *oauth2.Token, info *components.AuthenticationInfo) (*userapi.User, error) {
+func (c *UserComponent) MapToUser(ctx context.Context, token *oauth2.Token, info *components.AuthenticationInfo) (*userapi.User, error) {
 	// TODO: When namespace == name, should we make it cluster scoped and shard them differently?
 	// Although then we are expressing that we don't normally read all these objects consistently, when we split by namespace
 
@@ -156,7 +156,7 @@ func (c *UserComponent) MapToUser(ctx context.Context, req *components.Request, 
 	}
 
 	userID := generateUserID()
-	userSpec, err := info.Provider.PopulateUserData(ctx, token, info)
+	userSpec, err := info.PopulateUserData(ctx, token, info)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build user info: %w", err)
 	}
@@ -172,9 +172,9 @@ func (c *UserComponent) MapToUser(ctx context.Context, req *components.Request, 
 	kube.InitObject(user, userKey)
 	user.Spec = userSpec
 
-	// if err := c.ensureNamespace(ctx, user.Metadata.Namespace); err != nil {
-	// 	return nil, err
-	// }
+	if err := c.ensureNamespace(ctx, user.Metadata.Namespace); err != nil {
+		return nil, err
+	}
 
 	// TODO: It is possible that we create two users simultaneously here
 	// We likely need to support merging users (which we probably need to do anyway if we support login with multiple accounts)

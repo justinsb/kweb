@@ -19,6 +19,8 @@ import (
 	"github.com/justinsb/kweb/components/github"
 	"github.com/justinsb/kweb/components/healthcheck"
 	"github.com/justinsb/kweb/components/kube/kubeclient"
+	"github.com/justinsb/kweb/components/login"
+	"github.com/justinsb/kweb/components/oauthsessions"
 	"github.com/justinsb/kweb/components/pages"
 
 	// "github.com/justinsb/kweb/components/login/providers"
@@ -83,6 +85,12 @@ func New(opt Options) (*Server, error) {
 	}
 	s.Components = append(s.Components, userComponent)
 
+	oauthsessions, err := oauthsessions.NewOAuthSessionsComponent(kubeClient)
+	if err != nil {
+		return nil, fmt.Errorf("error building oauth sessions component: %w", err)
+	}
+	s.Components = append(s.Components, oauthsessions)
+
 	githubAppID := os.Getenv("GITHUB_APP_ID")
 	if githubAppID != "" {
 		// TODO: Get from kube secret or file?
@@ -105,6 +113,12 @@ func New(opt Options) (*Server, error) {
 		}
 	}
 
+	loginComponent, err := login.NewComponent()
+	if err != nil {
+		return nil, err
+	}
+	s.Components = append(s.Components, loginComponent)
+
 	clientID := os.Getenv("OAUTH2_CLIENT_ID")
 	if clientID != "" {
 		clientSecret := os.Getenv("OAUTH2_CLIENT_SECRET")
@@ -112,30 +126,19 @@ func New(opt Options) (*Server, error) {
 
 		switch authProvider {
 		case "google":
-			googleProvider, err := loginwithgoogle.NewGoogleProvider("google", clientID, clientSecret)
+			googleProvider, err := loginwithgoogle.NewGoogleProvider("google", clientID, clientSecret, userComponent)
 			if err != nil {
 				return nil, fmt.Errorf("error building google provider: %w", err)
 			}
-
-			// TODO: Clean this up ... we should have a shared login component (e.g. that implements logout?)
-			loginComponent, err := loginwithgoogle.NewComponent(userComponent, googleProvider)
-			if err != nil {
-				return nil, fmt.Errorf("error building login component: %w", err)
-			}
-			s.Components = append(s.Components, loginComponent)
+			loginComponent.RegisterProvider(googleProvider)
 
 		case "github":
-			githubAuth, err := loginwithgithub.NewGithubProvider(clientID, clientSecret)
+			githubAuth, err := loginwithgithub.NewGithubProvider(clientID, clientSecret, userComponent)
 			if err != nil {
 				return nil, fmt.Errorf("error building github auth provider: %w", err)
 			}
+			loginComponent.RegisterProvider(githubAuth)
 
-			// TODO: Clean this up ... we should have a shared login component (e.g. that implements logout?)
-			loginComponent, err := loginwithgithub.NewComponent(userComponent, githubAuth)
-			if err != nil {
-				return nil, fmt.Errorf("error building login component: %w", err)
-			}
-			s.Components = append(s.Components, loginComponent)
 		case "":
 			return nil, fmt.Errorf("OAUTH2_PROVIDER must be set to one of google / github")
 

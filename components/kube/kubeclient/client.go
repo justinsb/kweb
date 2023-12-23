@@ -13,6 +13,7 @@ import (
 
 	"github.com/justinsb/kweb/components/kube"
 	"github.com/justinsb/kweb/components/kube/kubejson"
+	oauthsessionsapi "github.com/justinsb/kweb/components/oauthsessions/api"
 	"google.golang.org/protobuf/proto"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -20,10 +21,12 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Client struct {
 	dynamic    dynamic.Interface
+	uncached   client.Client
 	restConfig *rest.Config
 }
 
@@ -32,14 +35,31 @@ func New(restConfig *rest.Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	scheme := runtime.NewScheme()
+	if err := oauthsessionsapi.AllKinds.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+	uncached, err := client.New(restConfig, client.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	return &Client{
 		dynamic:    dynamicClient,
+		uncached:   uncached,
 		restConfig: restConfig,
 	}, nil
 }
 
 func (c *Client) Dynamic() dynamic.Interface {
 	return c.dynamic
+}
+
+func (c *Client) Uncached() client.Client {
+	return c.uncached
 }
 
 func (c *Client) Get(ctx context.Context, id types.NamespacedName, obj proto.Message) error {

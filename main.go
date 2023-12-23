@@ -63,6 +63,8 @@ func (a *App) RunFromMain() {
 }
 
 func (a *App) run(ctx context.Context) error {
+	ctx = components.WithServer(ctx, &a.server.Server)
+
 	if a.options.Server.UseSPIFFE {
 		if err := client.SPIFFE.Init(ctx); err != nil {
 			return fmt.Errorf("error initializing SPIFFE")
@@ -96,8 +98,12 @@ func (a *App) AddComponent(component components.Component) {
 
 func (a *App) Users() *users.UserComponent {
 	var userComponent *users.UserComponent
-	if err := components.GetComponent(&a.server.Server, &userComponent); err != nil {
+	if err := components.GetComponentFromServer(&a.server.Server, &userComponent); err != nil {
 		klog.Fatalf("error getting user component: %v", err)
 	}
 	return userComponent
+}
+
+func (a *App) Server() *components.Server {
+	return &a.server.Server
 }
