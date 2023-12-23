@@ -1,6 +1,7 @@
 package fieldpath
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -10,7 +11,7 @@ import (
 
 type Condition interface {
 	fmt.Stringer
-	EvalCondition(m interface{}) bool
+	EvalCondition(ctx context.Context, m interface{}) bool
 }
 
 type BinaryCondition struct {
@@ -19,12 +20,12 @@ type BinaryCondition struct {
 	Right    Expression
 }
 
-func (e *BinaryCondition) EvalCondition(o interface{}) bool {
-	lv, ok := e.Left.Eval(o)
+func (e *BinaryCondition) EvalCondition(ctx context.Context, o interface{}) bool {
+	lv, ok := e.Left.Eval(ctx, o)
 	if !ok {
 		return false
 	}
-	rv, ok := e.Right.Eval(o)
+	rv, ok := e.Right.Eval(ctx, o)
 	if !ok {
 		return false
 	}
@@ -54,8 +55,8 @@ type TruthyCondition struct {
 	Expr Expression
 }
 
-func (e *TruthyCondition) EvalCondition(o interface{}) bool {
-	v, ok := e.Expr.Eval(o)
+func (e *TruthyCondition) EvalCondition(ctx context.Context, o interface{}) bool {
+	v, ok := e.Expr.Eval(ctx, o)
 	if !ok {
 		return false
 	}
@@ -89,8 +90,8 @@ type NegateCondition struct {
 	Inner Condition
 }
 
-func (e *NegateCondition) EvalCondition(o interface{}) bool {
-	inner := e.Inner.EvalCondition(o)
+func (e *NegateCondition) EvalCondition(ctx context.Context, o interface{}) bool {
+	inner := e.Inner.EvalCondition(ctx, o)
 	return !inner
 }
 

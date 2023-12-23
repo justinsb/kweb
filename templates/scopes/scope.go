@@ -1,5 +1,7 @@
 package scopes
 
+import "context"
+
 type Scope struct {
 	Values map[string]Value
 }
@@ -13,7 +15,7 @@ func NewScope() *Scope {
 	return &Scope{Values: make(map[string]Value)}
 }
 
-func (s *Scope) Eval(name string) (interface{}, bool) {
+func (s *Scope) Eval(ctx context.Context, name string) (interface{}, bool) {
 	v, ok := s.Values[name]
 	if !ok {
 		return nil, false

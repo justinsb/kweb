@@ -2,6 +2,7 @@ package templates
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -18,6 +19,7 @@ import (
 type Render struct {
 	w    *bufio.Writer
 	data *scopes.Scope
+	ctx  context.Context
 }
 
 func (r *Render) renderTextNode(node *html.Node) error {
@@ -28,7 +30,7 @@ func (r *Render) renderTextNode(node *html.Node) error {
 		if err != nil {
 			return err
 		}
-		expanded, err := el.Eval(r.data)
+		expanded, err := el.Eval(r.ctx, r.data)
 		if err != nil {
 			return err
 		}
@@ -47,7 +49,7 @@ func (r *Render) renderAttributeValue(attr *html.Attribute) error {
 		if err != nil {
 			return err
 		}
-		expanded, err := el.Eval(r.data)
+		expanded, err := el.Eval(r.ctx, r.data)
 		if err != nil {
 			return err
 		}
@@ -105,7 +107,7 @@ func (r *Render) renderElementNode(node *html.Node) error {
 	}
 
 	if ngIfExpression != nil {
-		match := ngIfExpression.EvalCondition(r.data)
+		match := ngIfExpression.EvalCondition(r.ctx, r.data)
 		if !match {
 			return nil
 		}

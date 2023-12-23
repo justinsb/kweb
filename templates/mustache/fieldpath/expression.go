@@ -1,6 +1,7 @@
 package fieldpath
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -16,7 +17,7 @@ type LiteralExpression struct {
 	Value string
 }
 
-func (e *LiteralExpression) Eval(o interface{}) (interface{}, bool) {
+func (e *LiteralExpression) Eval(ctx context.Context, o interface{}) (interface{}, bool) {
 	return e.Value, true
 }
 
@@ -29,14 +30,14 @@ type IdentifierExpression struct {
 	Key string
 }
 
-func (e *IdentifierExpression) Eval(o interface{}) (interface{}, bool) {
+func (e *IdentifierExpression) Eval(ctx context.Context, o interface{}) (interface{}, bool) {
 	if o == nil {
 		return nil, false
 	}
 
 	switch o := o.(type) {
 	case *scopes.Scope:
-		return o.Eval(e.Key)
+		return o.Eval(ctx, e.Key)
 
 	default:
 		klog.Warningf("unhandled type in IdentifierExpression %v: %T", e, o)
@@ -51,7 +52,7 @@ func (e *IdentifierExpression) String() string {
 
 type Expression interface {
 	fmt.Stringer
-	Eval(m interface{}) (interface{}, bool)
+	Eval(ctx context.Context, m interface{}) (interface{}, bool)
 }
 
 type IndexExpression struct {
@@ -60,9 +61,9 @@ type IndexExpression struct {
 	Style string
 }
 
-func (e *IndexExpression) Eval(o interface{}) (interface{}, bool) {
+func (e *IndexExpression) Eval(ctx context.Context, o interface{}) (interface{}, bool) {
 	if e.Base != nil {
-		v, ok := e.Base.Eval(o)
+		v, ok := e.Base.Eval(ctx, o)
 		if !ok {
 			return nil, false
 		}
@@ -76,7 +77,7 @@ func (e *IndexExpression) Eval(o interface{}) (interface{}, bool) {
 	switch o := o.(type) {
 	case *scopes.Scope:
 		// TODO: Only at top level?
-		return o.Eval(e.Key)
+		return o.Eval(ctx, e.Key)
 
 	case *unstructured.Unstructured:
 		v, ok := o.Object[e.Key]
