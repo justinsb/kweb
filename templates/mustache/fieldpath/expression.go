@@ -129,28 +129,60 @@ func (e *IndexExpression) Eval(ctx context.Context, o interface{}) (interface{},
 
 	default:
 		val := reflect.ValueOf(o)
-		if val.Kind() != reflect.Struct {
-			klog.Warningf("unhandled type in IndexExpression %v: %T (unexpected reflect kind %v)", e, o, val.Kind())
-			return nil, false
+
+		structVal := val
+		if structVal.Kind() == reflect.Ptr {
+			structVal = structVal.Elem()
 		}
-		structVal := val.Type()
-		nFields := val.NumField()
-		for i := 0; i < nFields; i++ {
-			// TODO: Cache json lookup
-			field := structVal.Field(i)
-			jsonTag := field.Tag.Get("json")
-			if jsonTag == "" {
-				jsonTag = field.Name
-				jsonTag = strings.ToLower(jsonTag[:1]) + jsonTag[1:]
+		if structVal.Kind() == reflect.Struct {
+			structValType := structVal.Type()
+			nFields := structVal.NumField()
+			for i := 0; i < nFields; i++ {
+				// TODO: Cache json lookup
+				field := structValType.Field(i)
+				jsonTag := field.Tag.Get("json")
+				if jsonTag == "" {
+					jsonTag = field.Name
+					jsonTag = strings.ToLower(jsonTag[:1]) + jsonTag[1:]
+				}
+				jsonTag = strings.TrimSuffix(jsonTag, ",omitempty")
+				if jsonTag != e.Key {
+					continue
+				}
+				fieldVal := structVal.Field(i)
+				return fieldVal.Interface(), true
 			}
-			jsonTag = strings.TrimSuffix(jsonTag, ",omitempty")
-			if jsonTag != e.Key {
-				continue
-			}
-			fieldVal := val.Field(i)
-			return fieldVal.Interface(), true
+			klog.Warningf("unhandled type in IndexExpression %v: %T (field %q not known)", e, o, e.Key)
 		}
-		klog.Warningf("unhandled type in IndexExpression %v: %T (field %q not known)", e, o, e.Key)
+
+		if val.Kind() == reflect.Ptr {
+			valType := val.Type()
+
+			nMethods := valType.NumMethod()
+			for i := 0; i < nMethods; i++ {
+				// TODO: Cache method lookup
+				method := valType.Method(i)
+				key := method.Name
+				key = strings.ToLower(key[:1]) + key[1:]
+				klog.Infof("method is %q", key)
+				if key != e.Key {
+					continue
+				}
+				klog.Infof("invoking method %v", method)
+				args := []reflect.Value{reflect.ValueOf(ctx)}
+				result := val.Method(i).Call(args)
+				klog.Infof("result of method call is %v", result)
+				if !result[1].IsNil() {
+					err := result[1].Interface().(error)
+					klog.Infof("error is %v", err)
+				}
+				return result[0].Interface(), true
+			}
+			klog.Warningf("unhandled type in IndexExpression %v: %T (method %q not known)", e, o, e.Key)
+
+		}
+
+		klog.Warningf("unhandled type in IndexExpression %v: %T (unexpected reflect kind %v)", e, o, val.Kind())
 		return nil, false
 	}
 }

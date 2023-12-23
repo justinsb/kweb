@@ -114,16 +114,22 @@ func (r *Render) renderElementNode(node *html.Node) error {
 	}
 
 	if ngForList != "" {
-		value, found := r.data.Values[ngForList]
+		ngForListExpr, err := fieldpath.ParseExpression(ngForList)
+		if err != nil {
+			return fmt.Errorf("error parsing ngFor expression %q: %w", ngForList, err)
+		}
+
+		val, found := ngForListExpr.Eval(r.ctx, r.data)
+		// value, found := r.data.Values[ngForList]
 		if !found {
 			return fmt.Errorf("value %q not found", ngForList)
 		}
-		var val interface{}
-		if value.Function != nil {
-			val = value.Function()
-		} else {
-			val = value.Value
-		}
+		// var val interface{}
+		// if value.Function != nil {
+		// 	val = value.Function()
+		// } else {
+		// 	val = value.Value
+		// }
 
 		forEach := func(item interface{}) error {
 			key := ngForVariable
