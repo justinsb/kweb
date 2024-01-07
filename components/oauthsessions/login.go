@@ -44,6 +44,30 @@ func (c *OAuthSessionsComponent) StoreSession(ctx context.Context, token *oauth2
 	return nil
 }
 
+func (c *OAuthSessionsComponent) RefreshSession(ctx context.Context, session *api.OauthSession) error {
+	// user := users.GetUser(ctx)
+	// if user == nil {
+	// 	return fmt.Errorf("no user found")
+	// }
+
+	// if session.Spec.RefreshToken == "" {
+	// 	return fmt.Errorf("cannot renew session without refreshToken")
+	// }
+
+	// session.Spec = api.OauthSessionSpec{
+	// 	User:         user.GetMetadata().GetName(),
+	// 	AccessToken:  token.AccessToken,
+	// 	RefreshToken: token.RefreshToken,
+	// 	ExpiresAt:    token.Expiry.Unix(),
+	// }
+
+	if err := c.kube.Uncached().Update(ctx, session); err != nil {
+		return fmt.Errorf("failed to update session: %w", err)
+	}
+
+	return nil
+}
+
 func randomID() string {
 	// TODO: Create ids packages
 	b := make([]byte, 32)

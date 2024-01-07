@@ -11,10 +11,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/justinsb/kweb/components"
 	"github.com/justinsb/kweb/components/kube"
 	"github.com/justinsb/kweb/components/kube/kubejson"
 	oauthsessionsapi "github.com/justinsb/kweb/components/oauthsessions/api"
 	kubesessionstorageapi "github.com/justinsb/kweb/components/sessions/kubesessionstorage/api"
+	"github.com/justinsb/kweb/templates/scopes"
 	"google.golang.org/protobuf/proto"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,25 +27,36 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+type Component struct {
+	Client *Client
+}
+
+func (c *Component) AddToScope(ctx context.Context, scope *scopes.Scope) {
+}
+
+func (c *Component) RegisterHandlers(s *components.Server, mux *http.ServeMux) error {
+	return nil
+}
+
 type Client struct {
 	dynamic    dynamic.Interface
 	uncached   client.Client
 	restConfig *rest.Config
 }
 
-func New(restConfig *rest.Config) (*Client, error) {
+func New(restConfig *rest.Config, scheme *runtime.Scheme) (*Client, error) {
 	dynamicClient, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	scheme := runtime.NewScheme()
 	if err := oauthsessionsapi.AllKinds.AddToScheme(scheme); err != nil {
 		return nil, err
 	}
 	if err := kubesessionstorageapi.AllKinds.AddToScheme(scheme); err != nil {
 		return nil, err
 	}
+
 	uncached, err := client.New(restConfig, client.Options{
 		Scheme: scheme,
 	})
@@ -56,6 +69,10 @@ func New(restConfig *rest.Config) (*Client, error) {
 		uncached:   uncached,
 		restConfig: restConfig,
 	}, nil
+}
+
+func Get(ctx context.Context) *Client {
+	return components.MustGetComponent[*Component](ctx).Client
 }
 
 func (c *Client) Dynamic() dynamic.Interface {

@@ -30,6 +30,7 @@ import (
 	"github.com/justinsb/kweb/components/sessions"
 	"github.com/justinsb/kweb/components/users"
 
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 )
 
@@ -44,6 +45,7 @@ type Options struct {
 	Listen                string
 	UserNamespaceStrategy users.NamespaceMapper
 	Pages                 pages.Options
+	Scheme                *runtime.Scheme
 
 	TLSConfig *tls.Config
 	UseSPIFFE bool
@@ -61,12 +63,13 @@ func New(opt Options) (*Server, error) {
 		return nil, fmt.Errorf("error getting kubernetes configuration: %w", err)
 	}
 
-	kubeClient, err := kubeclient.New(restConfig)
+	s := &Server{}
+
+	kubeClient, err := kubeclient.New(restConfig, opt.Scheme)
 	if err != nil {
 		return nil, fmt.Errorf("error building kubernetes controller client: %w", err)
 	}
-
-	s := &Server{}
+	s.Components = append(s.Components, &kubeclient.Component{Client: kubeClient})
 
 	healthcheckComponent := healthcheck.NewHealthcheckComponent()
 	s.Components = append(s.Components, healthcheckComponent)

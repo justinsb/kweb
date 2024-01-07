@@ -37,6 +37,12 @@ func New(opt Options) *Component {
 	return &Component{options: opt}
 }
 
+func GetComponent(ctx context.Context) *Component {
+	var component *Component
+	components.GetComponent(ctx, &component)
+	return component
+}
+
 func loadRaw(fs fs.FS, key string) ([]byte, error) {
 	f, err := fs.Open(key)
 	if err != nil {
@@ -147,7 +153,7 @@ func (m *pageMux) addHandlers(base fs.FS, p string, info fs.DirEntry) error {
 			Data: []byte(templateData),
 		}
 
-		endpoint := &TemplateEndpoint{template: template, server: m.s}
+		endpoint := &TemplateEndpoint{template: template}
 		serveOn := "/" + p
 		// Hack to we don't always have to call fs.Embed
 		if strings.HasPrefix(serveOn, "/pages/") {
@@ -201,12 +207,13 @@ func (m *pageMux) addHandlers(base fs.FS, p string, info fs.DirEntry) error {
 }
 
 type TemplateEndpoint struct {
-	server   *components.Server
 	template templates.Template
 }
 
 func (e *TemplateEndpoint) ServeHTTP(ctx context.Context, req *components.Request) (components.Response, error) {
-	data := e.server.NewScope(ctx)
+	server := components.GetServer(ctx)
+
+	data := server.NewScope(ctx)
 
 	return e.Render(ctx, req, data)
 }
@@ -220,4 +227,14 @@ func (e *TemplateEndpoint) Render(ctx context.Context, req *components.Request, 
 		Body: b.Bytes(),
 	}
 	return response, nil
+}
+
+func BuildTemplate(b []byte) *TemplateEndpoint {
+	template := templates.Template{
+		Data: []byte(b),
+	}
+
+	endpoint := &TemplateEndpoint{template: template}
+
+	return endpoint
 }
