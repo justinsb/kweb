@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kweb-blobstore
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: kweb-blobstore-server
+  name: kweb-blobstore-server
+  namespace: kweb-blobstore
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kweb-blobstore-server
+  template:
+    metadata:
+      labels:
+        app: kweb-blobstore-server
+    spec:
+      serviceAccountName: kweb-blobstore-server
+      containers:
+      - image: image-repo/kweb-blobstore-server:latest
+        name: kweb-blobstore-server
+        # envFrom:
+        # - secretRef:
+        #     name: kweb-blobstore-server
+        # - configMapRef:
+        #     name: kweb-blobstore-server
+        # readinessProbe:
+        #   httpGet:
+        #     path: /healthz
+        #     port: 8080
+        #     scheme: HTTPS
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kweb-blobstore-server
+  namespace: kweb-blobstore
+spec:
+  ports:
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    app: kweb-blobstore-server
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: kweb-blobstore-server
+  name: kweb-blobstore-server
+  namespace: kweb-blobstore
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kweb-blobstore-server
+  namespace: kweb-blobstore
+rules:
+# - apiGroups: ["kweb.dev"]
+#   resources: ["users"]
+#   verbs: ["get", "list", "watch", "create", "update", "delete"]
+# - apiGroups: [""]
+#   resources: ["namespaces"]
+#   verbs: ["get", "list", "watch", "create", "update", "delete"]
+# - apiGroups: [""]
+#   resources: ["secrets"]
+#   verbs: ["get", "list", "watch", "create", "update", "delete"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kweb-blobstore-server
+  namespace: kweb-blobstore
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kweb-blobstore-server
+subjects:
+- kind: ServiceAccount
+  name: kweb-blobstore-server
+  namespace: kweb-blobstore
