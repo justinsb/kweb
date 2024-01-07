@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package blobstore;
+
+option go_package = "github.com/justinsb/kweb/services/blobstore/api/v1";
+
+service BlobStore {
+  rpc GetBlob(GetBlobRequest) returns (stream GetBlobReply) {}
+  rpc CreateBlob(stream CreateBlobRequest) returns (CreateBlobReply) {}
+}
+
+message CreateBlobRequest {
+  string store = 1;
+  bytes sha256 = 2;
+  bytes data = 3;
+  bool done = 4;
+}
+
+message CreateBlobReply {
+  string store = 1;
+  bytes sha256 = 2;
+  int64 length = 3;
+}
+
+message GetBlobRequest {
+  string store = 1;
+  bytes sha256 = 2;
+}
+
+message GetBlobReply { bytes data = 3; }

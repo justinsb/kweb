@@ -55,19 +55,19 @@ func (o *Options) InitDefaults(appName string) {
 }
 
 func (a *App) RunFromMain() {
-	err := a.run(context.Background())
+	err := a.Run(context.Background())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "unexpected error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func (a *App) run(ctx context.Context) error {
+func (a *App) Run(ctx context.Context) error {
 	ctx = components.WithServer(ctx, &a.server.Server)
 
 	if a.options.Server.UseSPIFFE {
 		if err := client.SPIFFE.Init(ctx); err != nil {
-			return fmt.Errorf("error initializing SPIFFE")
+			return fmt.Errorf("error initializing SPIFFE: %w", err)
 		}
 
 		source := client.SPIFFE.Source()
