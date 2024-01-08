@@ -77,8 +77,8 @@ func (c *UserComponent) RegisterHandlers(s *components.Server, mux *http.ServeMu
 
 func (c *UserComponent) AddToScope(ctx context.Context, scope *scopes.Scope) {
 	scope.Values["user"] = scopes.Value{
-		Function: func() interface{} {
-			return GetUser(ctx)
+		Function: func() (any, error) {
+			return GetUser(ctx), nil
 		},
 	}
 }

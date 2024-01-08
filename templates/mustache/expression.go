@@ -68,7 +68,10 @@ func (l *MustacheExpression) Eval(ctx context.Context, scope *scopes.Scope) (str
 	}
 
 	klog.Infof("parsed expression %q => %q", l.Expression, exprTree.String())
-	v, ok := exprTree.Eval(ctx, scope)
+	v, ok, err := exprTree.Eval(ctx, scope)
+	if err != nil {
+		return "", err
+	}
 	if !ok {
 		return "", nil
 	}

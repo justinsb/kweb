@@ -94,85 +94,85 @@ type App struct {
 
 func (a *App) GlobalValues(ctx context.Context, scope *scopes.Scope) {
 	scope.Values["nodes"] = scopes.Value{
-		Function: func() interface{} {
+		Function: func() (any, error) {
 			return a.Nodes(ctx)
 		},
 	}
 	scope.Values["pods"] = scopes.Value{
-		Function: func() interface{} {
+		Function: func() (any, error) {
 			return a.Pods(ctx)
 		},
 	}
 	scope.Values["namespaces"] = scopes.Value{
-		Function: func() interface{} {
+		Function: func() (any, error) {
 			return a.Namespaces(ctx)
 		},
 	}
 	scope.Values["namespace"] = scopes.Value{
-		Function: func() interface{} {
+		Function: func() (any, error) {
 			return a.Namespace(ctx)
 		},
 	}
 	scope.Values["objects"] = scopes.Value{
-		Function: func() interface{} {
+		Function: func() (any, error) {
 			return a.Objects(ctx)
 		},
 	}
 	scope.Values["object"] = scopes.Value{
-		Function: func() interface{} {
+		Function: func() (any, error) {
 			return a.Object(ctx)
 		},
 	}
 	scope.Values["groupresources"] = scopes.Value{
-		Function: func() interface{} {
+		Function: func() (any, error) {
 			return a.GroupResources(ctx)
 		},
 	}
 	scope.Values["path"] = scopes.Value{
-		Function: func() interface{} {
+		Function: func() (any, error) {
 			return a.Path(ctx)
 		},
 	}
 
 }
 
-func (a *App) Nodes(ctx context.Context) interface{} {
+func (a *App) Nodes(ctx context.Context) (any, error) {
 	var opts metav1.ListOptions
 	nodes, err := a.dynamicClient.Resource(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "nodes"}).List(ctx, opts)
 	if err != nil {
-		klog.Fatalf("todo: %v", err)
+		return nil, fmt.Errorf("listing nodes: %w", err)
 	}
-	return nodes.Items
+	return nodes.Items, nil
 }
 
-func (a *App) Pods(ctx context.Context) interface{} {
+func (a *App) Pods(ctx context.Context) (any, error) {
 	var opts metav1.ListOptions
 	pods, err := a.dynamicClient.Resource(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}).List(ctx, opts)
 	if err != nil {
-		klog.Fatalf("todo: %v", err)
+		return nil, fmt.Errorf("listing pods: %w", err)
 	}
-	return pods.Items
+	return pods.Items, nil
 }
 
-func (a *App) Namespaces(ctx context.Context) interface{} {
+func (a *App) Namespaces(ctx context.Context) (any, error) {
 	var opts metav1.ListOptions
 	namespaces, err := a.dynamicClient.Resource(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"}).List(ctx, opts)
 	if err != nil {
-		klog.Fatalf("todo: %v", err)
+		return nil, fmt.Errorf("listing namespaces: %w", err)
 	}
-	return namespaces.Items
+	return namespaces.Items, nil
 }
 
-func (a *App) Namespace(ctx context.Context) interface{} {
+func (a *App) Namespace(ctx context.Context) (any, error) {
 	req := components.GetRequest(ctx)
 	name := req.PathParameter("name")
 
 	var opts metav1.GetOptions
 	namespace, err := a.dynamicClient.Resource(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"}).Get(ctx, name, opts)
 	if err != nil {
-		klog.Fatalf("todo: %v", err)
+		return nil, fmt.Errorf("getting namespace: %w", err)
 	}
-	return namespace
+	return namespace, nil
 }
 
 func (a *App) preferredVersion(ctx context.Context, groupResource schema.GroupResource) (string, error) {
@@ -199,24 +199,24 @@ func (a *App) preferredVersion(ctx context.Context, groupResource schema.GroupRe
 	return "", fmt.Errorf("cannot find version for %s", groupResource.String())
 }
 
-func (a *App) Objects(ctx context.Context) interface{} {
+func (a *App) Objects(ctx context.Context) (any, error) {
 	req := components.GetRequest(ctx)
 	group := req.PathParameter("group")
 	resource := req.PathParameter("resource")
 	version, err := a.preferredVersion(ctx, schema.GroupResource{Group: group, Resource: resource})
 	if err != nil {
-		klog.Fatalf("todo: %v", err)
+		return nil, err
 	}
 	gvr := schema.GroupVersionResource{Group: group, Resource: resource, Version: version}
 	var opts metav1.ListOptions
 	response, err := a.dynamicClient.Resource(gvr).List(ctx, opts)
 	if err != nil {
-		klog.Fatalf("todo: %v", err)
+		return nil, fmt.Errorf("listing objects: %w", err)
 	}
-	return response.Items
+	return response.Items, nil
 }
 
-func (a *App) Object(ctx context.Context) interface{} {
+func (a *App) Object(ctx context.Context) (any, error) {
 	req := components.GetRequest(ctx)
 
 	group := req.PathParameter("group")
@@ -233,28 +233,28 @@ func (a *App) Object(ctx context.Context) interface{} {
 	var opts metav1.GetOptions
 	response, err := a.dynamicClient.Resource(gvr).Namespace(namespace).Get(ctx, name, opts)
 	if err != nil {
-		klog.Fatalf("todo get %v/%s: %v", gvr, name, err)
+		return nil, fmt.Errorf("getting object: %w", err)
 	}
-	return response
+	return response, nil
 }
 
-func (a *App) Path(ctx context.Context) interface{} {
+func (a *App) Path(ctx context.Context) (any, error) {
 	req := components.GetRequest(ctx)
 
-	return req.PathParameters
+	return req.PathParameters, nil
 }
 
-func (a *App) GroupResources(ctx context.Context) interface{} {
+func (a *App) GroupResources(ctx context.Context) (any, error) {
 	response, err := a.discoveryClient.ServerPreferredResources()
 	if err != nil {
-		klog.Fatalf("todo: %v", err)
+		return nil, fmt.Errorf("doing discovery: %w", err)
 	}
 
 	var grs []schema.GroupResource
 	for _, resourceList := range response {
 		gv, err := schema.ParseGroupVersion(resourceList.GroupVersion)
 		if err != nil {
-			klog.Fatalf("todo: %v", err)
+			return nil, fmt.Errorf("parsing groupversion: %w", err)
 		}
 		for _, r := range resourceList.APIResources {
 			grs = append(grs, schema.GroupResource{
@@ -264,5 +264,5 @@ func (a *App) GroupResources(ctx context.Context) interface{} {
 		}
 	}
 
-	return grs
+	return grs, nil
 }
