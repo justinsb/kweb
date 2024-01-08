@@ -28,6 +28,14 @@ func GetComponent[T any](ctx context.Context, dest *T) error {
 	return GetComponentFromServer(server, dest)
 }
 
+func MustGetComponent[T any](ctx context.Context) T {
+	var t T
+	if err := GetComponent[T](ctx, &t); err != nil {
+		klog.Fatalf("error getting component %T: %v", t, err)
+	}
+	return t
+}
+
 func GetComponentFromServer[T any](s *Server, dest *T) error {
 	var matches []T
 	for _, component := range s.Components {
@@ -37,6 +45,11 @@ func GetComponentFromServer[T any](s *Server, dest *T) error {
 		}
 	}
 	if len(matches) == 0 {
+		// for _, component := range s.Components {
+		// 	klog.Infof("have component of type %T", component)
+		// 	var t T
+		// 	klog.Infof("want %T", t)
+		// }
 		return fmt.Errorf("component not found")
 	}
 	if len(matches) > 1 {

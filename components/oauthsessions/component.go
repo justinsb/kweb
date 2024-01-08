@@ -67,6 +67,13 @@ func GetOauthSession(ctx context.Context) (*api.OauthSession, error) {
 			best = session
 		}
 	}
+
+	if best == nil {
+		return nil, nil
+	}
+
+	// TODO: Check ttl and auto-refresh?
+
 	return best, nil
 }
 
