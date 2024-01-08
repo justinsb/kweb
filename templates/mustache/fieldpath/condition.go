@@ -6,12 +6,11 @@ import (
 	"reflect"
 
 	"google.golang.org/protobuf/proto"
-	"k8s.io/klog/v2"
 )
 
 type Condition interface {
 	fmt.Stringer
-	EvalCondition(ctx context.Context, m interface{}) bool
+	EvalCondition(ctx context.Context, m interface{}) (bool, error)
 }
 
 type BinaryCondition struct {
@@ -20,26 +19,31 @@ type BinaryCondition struct {
 	Right    Expression
 }
 
-func (e *BinaryCondition) EvalCondition(ctx context.Context, o interface{}) bool {
-	lv, ok := e.Left.Eval(ctx, o)
-	if !ok {
-		return false
+func (e *BinaryCondition) EvalCondition(ctx context.Context, o interface{}) (bool, error) {
+	lv, ok, err := e.Left.Eval(ctx, o)
+	if err != nil {
+		return false, err
 	}
-	rv, ok := e.Right.Eval(ctx, o)
 	if !ok {
-		return false
+		return false, nil
+	}
+	rv, ok, err := e.Right.Eval(ctx, o)
+	if err != nil {
+		return false, err
+	}
+	if !ok {
+		return false, nil
 	}
 
 	if e.Operator == "==" {
 		equal := reflect.DeepEqual(lv, rv)
-		return equal
+		return equal, nil
 	}
 	if e.Operator == "!=" {
 		equal := reflect.DeepEqual(lv, rv)
-		return !equal
+		return !equal, nil
 	}
-	klog.Fatalf("unhandled operator %q", e.Operator)
-	return false
+	return false, fmt.Errorf("unhandled operator %q", e.Operator)
 }
 
 func (e *BinaryCondition) String() string {
@@ -55,10 +59,13 @@ type TruthyCondition struct {
 	Expr Expression
 }
 
-func (e *TruthyCondition) EvalCondition(ctx context.Context, o interface{}) bool {
-	v, ok := e.Expr.Eval(ctx, o)
+func (e *TruthyCondition) EvalCondition(ctx context.Context, o interface{}) (bool, error) {
+	v, ok, err := e.Expr.Eval(ctx, o)
+	if err != nil {
+		return false, err
+	}
 	if !ok {
-		return false
+		return false, nil
 	}
 
 	var truthy bool
@@ -73,11 +80,10 @@ func (e *TruthyCondition) EvalCondition(ctx context.Context, o interface{}) bool
 	// case runtime.Object:
 	// 	truthy = v != nil
 	default:
-		klog.Warningf("unhandled type in TruthyCondition %v: %T", e, v)
-		return false
+		return false, fmt.Errorf("unhandled type in TruthyCondition %v: %T", e, v)
 	}
 
-	return truthy
+	return truthy, nil
 }
 
 func (e *TruthyCondition) String() string {
@@ -90,9 +96,12 @@ type NegateCondition struct {
 	Inner Condition
 }
 
-func (e *NegateCondition) EvalCondition(ctx context.Context, o interface{}) bool {
-	inner := e.Inner.EvalCondition(ctx, o)
-	return !inner
+func (e *NegateCondition) EvalCondition(ctx context.Context, o interface{}) (bool, error) {
+	inner, err := e.Inner.EvalCondition(ctx, o)
+	if err != nil {
+		return false, err
+	}
+	return !inner, nil
 }
 
 func (e *NegateCondition) String() string {

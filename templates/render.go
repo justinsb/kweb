@@ -107,7 +107,10 @@ func (r *Render) renderElementNode(node *html.Node) error {
 	}
 
 	if ngIfExpression != nil {
-		match := ngIfExpression.EvalCondition(r.ctx, r.data)
+		match, err := ngIfExpression.EvalCondition(r.ctx, r.data)
+		if err != nil {
+			return err
+		}
 		if !match {
 			return nil
 		}
@@ -119,7 +122,10 @@ func (r *Render) renderElementNode(node *html.Node) error {
 			return fmt.Errorf("error parsing ngFor expression %q: %w", ngForList, err)
 		}
 
-		val, found := ngForListExpr.Eval(r.ctx, r.data)
+		val, found, err := ngForListExpr.Eval(r.ctx, r.data)
+		if err != nil {
+			return err
+		}
 		// value, found := r.data.Values[ngForList]
 		if !found {
 			return fmt.Errorf("value %q not found", ngForList)

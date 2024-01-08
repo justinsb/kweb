@@ -17,8 +17,8 @@ type LiteralExpression struct {
 	Value string
 }
 
-func (e *LiteralExpression) Eval(ctx context.Context, o interface{}) (interface{}, bool) {
-	return e.Value, true
+func (e *LiteralExpression) Eval(ctx context.Context, o interface{}) (interface{}, bool, error) {
+	return e.Value, true, nil
 }
 
 func (e *LiteralExpression) String() string {
@@ -30,9 +30,9 @@ type IdentifierExpression struct {
 	Key string
 }
 
-func (e *IdentifierExpression) Eval(ctx context.Context, o interface{}) (interface{}, bool) {
+func (e *IdentifierExpression) Eval(ctx context.Context, o interface{}) (interface{}, bool, error) {
 	if o == nil {
-		return nil, false
+		return nil, false, nil
 	}
 
 	switch o := o.(type) {
@@ -40,8 +40,7 @@ func (e *IdentifierExpression) Eval(ctx context.Context, o interface{}) (interfa
 		return o.Eval(ctx, e.Key)
 
 	default:
-		klog.Warningf("unhandled type in IdentifierExpression %v: %T", e, o)
-		return nil, false
+		return nil, false, fmt.Errorf("unhandled type in IdentifierExpression %v: %T", e, o)
 	}
 }
 
@@ -52,7 +51,7 @@ func (e *IdentifierExpression) String() string {
 
 type Expression interface {
 	fmt.Stringer
-	Eval(ctx context.Context, m interface{}) (interface{}, bool)
+	Eval(ctx context.Context, m interface{}) (interface{}, bool, error)
 }
 
 type IndexExpression struct {
@@ -61,17 +60,20 @@ type IndexExpression struct {
 	Style string
 }
 
-func (e *IndexExpression) Eval(ctx context.Context, o interface{}) (interface{}, bool) {
+func (e *IndexExpression) Eval(ctx context.Context, o interface{}) (interface{}, bool, error) {
 	if e.Base != nil {
-		v, ok := e.Base.Eval(ctx, o)
+		v, ok, err := e.Base.Eval(ctx, o)
+		if err != nil {
+			return nil, false, err
+		}
 		if !ok {
-			return nil, false
+			return nil, false, nil
 		}
 		o = v
 	}
 
 	if o == nil {
-		return nil, false
+		return nil, false, nil
 	}
 
 	switch o := o.(type) {
@@ -82,49 +84,49 @@ func (e *IndexExpression) Eval(ctx context.Context, o interface{}) (interface{},
 	case *unstructured.Unstructured:
 		v, ok := o.Object[e.Key]
 		if !ok {
-			return nil, false
+			return nil, false, nil
 		}
-		return v, true
+		return v, true, nil
 
 	case unstructured.Unstructured:
 		v, ok := o.Object[e.Key]
 		if !ok {
-			return nil, false
+			return nil, false, nil
 		}
-		return v, true
+		return v, true, nil
 
 	case map[string]interface{}:
 		v, ok := o[e.Key]
 		if !ok {
 			klog.Infof("key %q not found in map %v", e.Key, o)
-			return nil, false
+			return nil, false, nil
 		}
-		return v, true
+		return v, true, nil
 
 	case map[string]string:
 		v, ok := o[e.Key]
 		if !ok {
 			klog.Infof("key %q not found in map %v", e.Key, o)
-			return nil, false
+			return nil, false, nil
 		}
-		return v, true
+		return v, true, nil
 
 	case proto.Message:
 		if o == nil {
-			return nil, false
+			return nil, false, nil
 		}
 		msg := o.ProtoReflect()
 		field := msg.Descriptor().Fields().ByName(protoreflect.Name(e.Key))
 		if field == nil {
 			klog.Warningf("field %q not found in proto message %v", e.Key, msg.Descriptor().FullName())
-			return nil, false
+			return nil, false, nil
 		}
 		v := msg.Get(field)
 		switch field.Kind() {
 		case protoreflect.MessageKind:
-			return v.Message().Interface(), true
+			return v.Message().Interface(), true, nil
 		default:
-			return v, true
+			return v, true, nil
 		}
 
 	default:
@@ -150,7 +152,7 @@ func (e *IndexExpression) Eval(ctx context.Context, o interface{}) (interface{},
 					continue
 				}
 				fieldVal := structVal.Field(i)
-				return fieldVal.Interface(), true
+				return fieldVal.Interface(), true, nil
 			}
 			klog.Warningf("unhandled type in IndexExpression %v: %T (field %q not known)", e, o, e.Key)
 		}
@@ -174,16 +176,16 @@ func (e *IndexExpression) Eval(ctx context.Context, o interface{}) (interface{},
 				klog.Infof("result of method call is %v", result)
 				if !result[1].IsNil() {
 					err := result[1].Interface().(error)
-					klog.Infof("error is %v", err)
+					return result[0].Interface(), true, err
 				}
-				return result[0].Interface(), true
+				return result[0].Interface(), true, nil
 			}
 			klog.Warningf("unhandled type in IndexExpression %v: %T (method %q not known)", e, o, e.Key)
 
 		}
 
 		klog.Warningf("unhandled type in IndexExpression %v: %T (unexpected reflect kind %v)", e, o, val.Kind())
-		return nil, false
+		return nil, false, nil
 	}
 }
 

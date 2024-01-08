@@ -208,6 +208,10 @@ type TemplateEndpoint struct {
 func (e *TemplateEndpoint) ServeHTTP(ctx context.Context, req *components.Request) (components.Response, error) {
 	data := e.server.NewScope(ctx)
 
+	return e.Render(ctx, req, data)
+}
+
+func (e *TemplateEndpoint) Render(ctx context.Context, req *components.Request, data *scopes.Scope) (components.Response, error) {
 	var b bytes.Buffer
 	if err := e.template.RenderHTML(ctx, &b, req, data); err != nil {
 		return nil, err
