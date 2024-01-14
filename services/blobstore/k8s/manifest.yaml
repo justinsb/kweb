@@ -24,11 +24,11 @@ spec:
       containers:
       - image: image-repo/kweb-blobstore-server:latest
         name: kweb-blobstore-server
-        # envFrom:
+        envFrom:
         # - secretRef:
         #     name: kweb-blobstore-server
-        # - configMapRef:
-        #     name: kweb-blobstore-server
+        - configMapRef:
+            name: kweb-blobstore-server
         # readinessProbe:
         #   httpGet:
         #     path: /healthz

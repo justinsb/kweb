@@ -5,10 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
+	"strings"
 
 	api "github.com/justinsb/kweb/services/blobstore/api/v1"
 	"github.com/justinsb/kweb/services/blobstore/pkg/server"
+	"github.com/justinsb/kweb/services/blobstore/pkg/server/s3store"
 	kinspire "github.com/justinsb/packages/kinspire/client"
 	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
 	"google.golang.org/grpc"
@@ -27,11 +30,16 @@ func run(ctx context.Context) error {
 	log := klog.FromContext(ctx)
 
 	listen := "0.0.0.0:8443"
-	storePath := ""
+	storePath := os.Getenv("BLOBSTORE_SERVER_STORE")
 	flag.StringVar(&listen, "listen", listen, "endpoint on which to listen")
 	flag.StringVar(&storePath, "store", storePath, "storage location")
 	klog.InitFlags(nil)
 	flag.Parse()
+
+	storePathURL, err := url.Parse(storePath)
+	if err != nil {
+		return fmt.Errorf("cannot parse flag --store=%q: %w", storePath, err)
+	}
 
 	if err := kinspire.SPIFFE.Init(ctx); err != nil {
 		return fmt.Errorf("error initializing SPIFFE: %w", err)
@@ -58,7 +66,26 @@ func run(ctx context.Context) error {
 
 	grpcServer := grpc.NewServer(opts...)
 
-	store := server.NewFilesystemStore(storePath)
+	var store server.Store
+	switch storePathURL.Scheme {
+	case "file":
+		s := server.NewFilesystemStore(storePath)
+		store = s
+	case "s3":
+		bucket := storePathURL.Host
+		keyPrefix := storePathURL.Path
+		if !strings.HasSuffix(keyPrefix, "/") {
+			keyPrefix += "/"
+		}
+		keyPrefix = strings.TrimPrefix(keyPrefix, "/")
+		s, err := s3store.NewS3Store(ctx, bucket, keyPrefix)
+		if err != nil {
+			return err
+		}
+		store = s
+	default:
+		return fmt.Errorf("unknown store type %q in --store=%q", storePathURL.Scheme, storePath)
+	}
 	blobStoreServer := server.NewBlobStoreService(store)
 
 	api.RegisterBlobStoreServer(grpcServer, blobStoreServer)

@@ -21,10 +21,6 @@ func NewFilesystemStore(path string) *FilesystemStore {
 	return &FilesystemStore{path: path}
 }
 
-type BlobInfo struct {
-	Length int64
-}
-
 func (s *FilesystemStore) pathOnDisk(hash []byte) string {
 	hashString := hex.EncodeToString(hash)
 	p := filepath.Join(s.path, hashString[0:2], hashString[2:4], hashString)
@@ -32,8 +28,8 @@ func (s *FilesystemStore) pathOnDisk(hash []byte) string {
 	return p
 }
 
-func (s *FilesystemStore) Open(ctx context.Context, hash []byte) (io.ReadCloser, error) {
-	p := s.pathOnDisk(hash)
+func (s *FilesystemStore) Open(ctx context.Context, sha256 []byte) (io.ReadCloser, error) {
+	p := s.pathOnDisk(sha256)
 
 	f, err := os.Open(p)
 	if err != nil {
@@ -42,10 +38,10 @@ func (s *FilesystemStore) Open(ctx context.Context, hash []byte) (io.ReadCloser,
 	return f, nil
 }
 
-func (s *FilesystemStore) CreateBlob(ctx context.Context, hash []byte, r io.Reader) (*BlobInfo, error) {
+func (s *FilesystemStore) CreateBlob(ctx context.Context, sha256 []byte, content io.Reader) (*BlobInfo, error) {
 	log := klog.FromContext(ctx)
 
-	p := s.pathOnDisk(hash)
+	p := s.pathOnDisk(sha256)
 	uploadPath := p + ".tmp-" + strconv.Itoa(rand.Int())
 
 	if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
@@ -77,7 +73,7 @@ func (s *FilesystemStore) CreateBlob(ctx context.Context, hash []byte, r io.Read
 		}
 	}()
 
-	n, err := io.Copy(f, r)
+	n, err := io.Copy(f, content)
 	if err != nil {
 		return nil, fmt.Errorf("writing to temp file %q: %w", uploadPath, err)
 	}

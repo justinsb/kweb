@@ -3,6 +3,7 @@ package components
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 
 	"k8s.io/klog/v2"
@@ -92,4 +93,45 @@ func (r JSONResponse) WriteTo(ctx context.Context, w http.ResponseWriter) {
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(b)
+}
+
+type FileResponse struct {
+	StatusCode int
+	StatusText string
+	headers    http.Header
+	Body       io.ReadCloser
+}
+
+func (r *FileResponse) Headers() http.Header {
+	if r.headers == nil {
+		r.headers = make(http.Header)
+	}
+	return r.headers
+}
+
+func (r *FileResponse) WriteTo(ctx context.Context, w http.ResponseWriter) {
+	log := klog.FromContext(ctx)
+
+	statusCode := r.StatusCode
+	if statusCode == 0 {
+		statusCode = 200
+	}
+	statusText := r.StatusText
+	if statusText == "" {
+		statusText = http.StatusText(statusCode)
+	}
+
+	for k, values := range r.headers {
+		for _, v := range values {
+			w.Header().Add(k, v)
+		}
+	}
+	w.WriteHeader(statusCode)
+	if _, err := io.Copy(w, r.Body); err != nil {
+		log.Error(err, "error writing http body")
+	}
+}
+
+func (r *FileResponse) Close() error {
+	return r.Body.Close()
 }
