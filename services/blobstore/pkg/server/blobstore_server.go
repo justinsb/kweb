@@ -12,7 +12,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func NewBlobStoreService(store *FilesystemStore) *blobStoreService {
+func NewBlobStoreService(store Store) *blobStoreService {
 	return &blobStoreService{store: store}
 }
 
@@ -20,7 +20,7 @@ func NewBlobStoreService(store *FilesystemStore) *blobStoreService {
 type blobStoreService struct {
 	pb.UnimplementedBlobStoreServer
 
-	store *FilesystemStore
+	store Store
 }
 
 func (s *blobStoreService) GetBlob(req *pb.GetBlobRequest, stream pb.BlobStore_GetBlobServer) error {
@@ -109,6 +109,7 @@ func (s *blobStoreService) CreateBlob(stream pb.BlobStore_CreateBlobServer) erro
 
 	blobInfo, err := s.store.CreateBlob(ctx, actualHash, tmpFile)
 	if err != nil {
+		log.Error(err, "failed to create blob")
 		return err
 	}
 
