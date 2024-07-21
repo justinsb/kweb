@@ -11,6 +11,7 @@ import (
 
 	api "github.com/justinsb/kweb/services/blobstore/api/v1"
 	"github.com/justinsb/kweb/services/blobstore/pkg/server"
+	"github.com/justinsb/kweb/services/blobstore/pkg/server/gcsstore"
 	"github.com/justinsb/kweb/services/blobstore/pkg/server/s3store"
 	kinspire "github.com/justinsb/packages/kinspire/client"
 	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
@@ -79,6 +80,18 @@ func run(ctx context.Context) error {
 		}
 		keyPrefix = strings.TrimPrefix(keyPrefix, "/")
 		s, err := s3store.NewS3Store(ctx, bucket, keyPrefix)
+		if err != nil {
+			return err
+		}
+		store = s
+	case "gs":
+		bucket := storePathURL.Host
+		keyPrefix := storePathURL.Path
+		if !strings.HasSuffix(keyPrefix, "/") {
+			keyPrefix += "/"
+		}
+		keyPrefix = strings.TrimPrefix(keyPrefix, "/")
+		s, err := gcsstore.NewGCSStore(ctx, bucket, keyPrefix)
 		if err != nil {
 			return err
 		}
